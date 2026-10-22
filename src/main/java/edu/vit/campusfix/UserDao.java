@@ -42,7 +42,7 @@ public final class UserDao {
         try (
             Connection c = Database.connect();
             PreparedStatement p = c.prepareStatement(
-                "SELECT id,name,email,role,password_hash,auth_version,hostel_block FROM users WHERE email=? AND active=TRUE"
+                "SELECT id,name,email,role,password_hash,auth_version,hostel_block FROM users WHERE email=? AND active=TRUE AND deleted_at IS NULL"
             )
         ) {
             p.setString(1, email.toLowerCase(Locale.ROOT));
@@ -70,7 +70,7 @@ public final class UserDao {
         try (
             Connection c = Database.connect();
             PreparedStatement p = c.prepareStatement(
-                "SELECT name,email,role,auth_version,hostel_block FROM users WHERE id=? AND active=TRUE"
+                "SELECT name,email,role,auth_version,hostel_block FROM users WHERE id=? AND active=TRUE AND deleted_at IS NULL"
             )
         ) {
             p.setLong(1, id);
@@ -89,7 +89,7 @@ public final class UserDao {
         try (
             Connection c = Database.connect();
             PreparedStatement p = c.prepareStatement(
-                "SELECT u.id,u.name,m.specialization,m.available FROM users u JOIN maintenance_staff m ON u.id=m.user_id WHERE u.active=TRUE AND u.role='STAFF' ORDER BY u.name"
+                "SELECT u.id,u.name,m.specialization,m.available FROM users u JOIN maintenance_staff m ON u.id=m.user_id WHERE u.active=TRUE AND u.role='STAFF' AND u.deleted_at IS NULL ORDER BY u.name"
             );
             ResultSet r = p.executeQuery()
         ) {

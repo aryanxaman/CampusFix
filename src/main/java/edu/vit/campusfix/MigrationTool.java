@@ -34,6 +34,15 @@ public final class MigrationTool {
                 try (
                     ResultSet columns = c
                         .getMetaData()
+                        .getColumns(c.getCatalog(), null, "users", "deleted_at")
+                ) {
+                    if (!columns.next()) try (Statement st = c.createStatement()) {
+                        st.execute("ALTER TABLE users ADD COLUMN deleted_at TIMESTAMP NULL");
+                    }
+                }
+                try (
+                    ResultSet columns = c
+                        .getMetaData()
                         .getColumns(c.getCatalog(), null, "users", "hostel_block")
                 ) {
                     if (!columns.next()) try (Statement st = c.createStatement()) {

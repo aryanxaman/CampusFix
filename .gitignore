@@ -1,8 +1,15 @@
-target/
-.runtime/
-.env
-uploads/
+# Generated WAR/classes and machine-specific servers/database files
+/target/
+/.runtime/
+
+# Local credentials and uploaded complaint photos
+/.env
+/uploads/
+
+# Runtime and Java crash logs
 *.log
+
+# Generated Explorer shortcuts; the complete source is tracked in /src/
 /Frontend/
 /Backend/
 /Tests/

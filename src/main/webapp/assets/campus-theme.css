@@ -1140,3 +1140,18 @@ td {
     transform: none;
   }
 }
+
+/* Account deletion uses a distinct destructive action in both themes. */
+.user-delete-button {
+  color: #dc3545;
+  border-color: rgba(220, 53, 69, 0.35);
+  background: rgba(220, 53, 69, 0.08);
+}
+.user-delete-button:hover {
+  color: #fff;
+  background: #b42335;
+  border-color: #b42335;
+}
+.user-actions {
+  flex-wrap: wrap;
+}

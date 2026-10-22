@@ -96,6 +96,16 @@ public final class ApiServlet extends HttpServlet {
                     json(res, Map.of("id", id));
                     return;
                 }
+                if ("POST".equals(method) && path.matches("/admin/users/\\d+/delete")) {
+                    Map<String, String> d = body(req);
+                    if (!"true".equals(d.get("confirmed"))) throw new ApiException(
+                        400,
+                        "Confirm user deletion first."
+                    );
+                    admin.delete(user, Long.parseLong(path.split("/")[3]));
+                    json(res, Map.of("ok", true));
+                    return;
+                }
                 if ("POST".equals(method) && path.matches("/admin/users/\\d+/(update|password)")) {
                     String[] segments = path.split("/");
                     long id = Long.parseLong(segments[3]);

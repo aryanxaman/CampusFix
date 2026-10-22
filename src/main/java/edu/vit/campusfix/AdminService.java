@@ -109,4 +109,9 @@ public final class AdminService {
         validatePassword(password);
         dao.resetPassword(actor, id, BCrypt.hashpw(password, BCrypt.gensalt(12)));
     }
+
+    public void delete(User actor, long id) throws SQLException {
+        requireAdmin(actor);
+        dao.delete(actor, id);
+    }
 }

@@ -125,7 +125,7 @@ MYSQL = RUNTIME / "mysql-8.4.0-winx64"
 TOMCAT_HOME = RUNTIME / "apache-tomcat-10.1.61"
 if not (MYSQL / "bin/mysqld.exe").exists() or not (TOMCAT_HOME / "bin/bootstrap.jar").exists():
     raise RuntimeError(
-        "Portable MySQL/Tomcat were not found under .runtime. See docs/RUN-BACKEND.md for setup."
+        "Portable MySQL/Tomcat were not found under .runtime. See README.md and TEAM-SETUP.md for setup."
     )
 
 config_path = LOCAL / "server.json"

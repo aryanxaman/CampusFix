@@ -389,11 +389,20 @@ function cfUsersPage() {
               .map((x) => x[0])
               .slice(0, 2)
               .join('')
-          )}</span><div class="user-identity"><strong>${esc(u.name)}</strong><small>${esc(u.email)}</small></div><span class="role-tag">${cfUserLabel(u.role)}</span><span class="account-state ${u.active ? '' : 'disabled'}">${u.active ? 'Enabled' : 'Disabled'}</span><div class="user-actions"><button class="btn-outline" data-action="cf-user-edit" data-id="${u.id}" aria-label="Manage ${esc(u.name)}">Manage</button><button class="icon-btn" data-action="cf-password" data-id="${u.id}" aria-label="Reset password for ${esc(u.name)}">${icon('key')}</button></div></article>`
+          )}</span><div class="user-identity"><strong>${esc(u.name)}</strong><small>${esc(u.email)}</small></div><span class="role-tag">${cfUserLabel(u.role)}</span><span class="account-state ${u.active ? '' : 'disabled'}">${u.active ? 'Enabled' : 'Disabled'}</span><div class="user-actions"><button class="btn-outline" data-action="cf-user-edit" data-id="${u.id}" aria-label="Manage ${esc(u.name)}">Manage</button><button class="icon-btn" data-action="cf-password" data-id="${u.id}" aria-label="Reset password for ${esc(u.name)}">${icon('key')}</button>${Number(u.id) !== Number(state.user.id) ? `<button class="btn-outline user-delete-button" data-action="cf-user-delete" data-id="${u.id}" aria-label="Delete ${esc(u.name)}">${icon('trash3')} Delete</button>` : ''}</div></article>`
       )
       .join('') || '<div class="empty">No users found.</div>'
   }</div></section><div class="notice">Staff with active work must have their complaints reassigned before their account can be disabled or their role changed. You cannot remove your own administrator access.</div>`;
 }
+function cfDeleteUserForm(id) {
+  const u = state.users.find((u) => u.id === Number(id));
+  if (!isAdmin() || !u || Number(u.id) === Number(state.user.id)) return;
+  openModal(
+    'Delete user',
+    `<p>Delete <strong>${esc(u.name)}</strong>?</p><p class="muted">${esc(u.email)}</p><div class="notice">This account will lose access immediately and disappear from the user directory. Complaint history is preserved. The email remains reserved. This action cannot be undone from this page.</div><form id="cf-user-delete-form" data-id="${u.id}"><label class="resolution-check"><input type="checkbox" name="confirmed" value="true" required> I confirm that I want to delete this user.</label><div class="form-footer"><button type="button" class="btn-outline" data-action="close-modal">Cancel</button><button type="submit" class="btn-primary user-delete-button">${icon('trash3')} Delete user</button></div></form>`
+  );
+}
+
 function cfUserForm(id) {
   const u = id ? state.users.find((u) => u.id === Number(id)) : null;
   if (id && !u) return;
@@ -581,6 +590,7 @@ document.addEventListener(
       if (action === 'cf-user-create') cfUserForm();
       else if (action === 'cf-user-edit') cfUserForm(b.dataset.id);
       else if (action === 'cf-password') cfPasswordForm(b.dataset.id);
+      else if (action === 'cf-user-delete') cfDeleteUserForm(b.dataset.id);
       else if (action === 'cf-staff-view') {
         state.page = 'complaints';
         state.filter = 'All';
@@ -633,7 +643,12 @@ document.addEventListener(
   'submit',
   async (e) => {
     const f = e.target;
-    if (!['cf-user-form', 'cf-password-form', 'cf-settings-form'].includes(f.id)) return;
+    if (
+      !['cf-user-form', 'cf-password-form', 'cf-settings-form', 'cf-user-delete-form'].includes(
+        f.id
+      )
+    )
+      return;
     e.preventDefault();
     e.stopImmediatePropagation();
     if (!isAdmin()) {
@@ -644,6 +659,33 @@ document.addEventListener(
     button.disabled = true;
     try {
       const d = Object.fromEntries(new FormData(f));
+      if (f.id === 'cf-user-delete-form') {
+        if (d.confirmed !== 'true') throw Error('Confirm user deletion first.');
+        const id = Number(f.dataset.id);
+        if (id === Number(state.user.id))
+          throw Error('You cannot delete your own administrator account.');
+        if (state.demo) {
+          if (
+            state.tickets.some(
+              (t) => Number(t.assignedStaffId) === id && !['RESOLVED', 'CLOSED'].includes(t.status)
+            )
+          )
+            throw Error('Reassign active complaints before deleting this user.');
+          state.users = state.users.filter((u) => Number(u.id) !== id);
+          state.staff = cfStaffMetrics();
+          cfSaveDemo();
+        } else {
+          await api(`admin/users/${id}/delete`, {
+            method: 'POST',
+            body: JSON.stringify({ confirmed: 'true' }),
+          });
+          await refresh();
+        }
+        closeModal();
+        render();
+        toast('User deleted. Complaint history preserved.');
+        return;
+      }
       if (f.id === 'cf-settings-form') {
         const config = {
           slaHours: Object.fromEntries(

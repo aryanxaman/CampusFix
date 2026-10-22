@@ -75,6 +75,90 @@ class AdminAnalyticsDatabaseTest {
     }
 
     @Test
+    void deletionRevokesLoginAndPreservesComplaintHistory() throws Exception {
+        long complaint = fixture.report();
+        adminService.delete(fixture.admin, 1);
+        assertNull(new UserDao().identity(1));
+        assertNull(new UserDao().authenticate("student@vit.ac.in", "test-password-123"));
+        assertTrue(
+            adminService
+                .users(fixture.admin)
+                .stream()
+                .noneMatch(u -> ((Number) u.get("id")).longValue() == 1)
+        );
+        assertTrue(
+            fixture.dao
+                .list(fixture.admin)
+                .stream()
+                .anyMatch(t -> ((Number) t.get("id")).longValue() == complaint)
+        );
+        try (
+            var c = Database.connect();
+            var p = c.prepareStatement(
+                "SELECT COUNT(*) FROM admin_audit WHERE action='USER_DELETED' AND target_user_id=1"
+            );
+            var r = p.executeQuery()
+        ) {
+            r.next();
+            assertEquals(1, r.getInt(1));
+        }
+        assertThrows(ApiException.class, () -> adminService.delete(fixture.admin, 1));
+        assertThrows(ApiException.class, () ->
+            adminService.update(fixture.admin, 1, Map.of("active", "true"))
+        );
+        assertThrows(ApiException.class, () ->
+            adminService.resetPassword(fixture.admin, 1, "New-secure-password-123")
+        );
+        assertThrows(ApiException.class, () ->
+            adminService.create(fixture.admin, account("student@vit.ac.in", "STUDENT"))
+        );
+    }
+
+    @Test
+    void deletionRejectsNonAdminsSelfAndMissingUsers() {
+        assertThrows(ApiException.class, () -> adminService.delete(fixture.student, 2));
+        assertThrows(ApiException.class, () -> adminService.delete(fixture.staff, 2));
+        assertThrows(ApiException.class, () ->
+            adminService.delete(fixture.admin, fixture.admin.id())
+        );
+        assertThrows(ApiException.class, () -> adminService.delete(fixture.admin, 99999));
+    }
+
+    @Test
+    void deletionBlocksBusyStaffThenAllowsCompletedStaff() throws Exception {
+        long id = fixture.report();
+        fixture.update(fixture.admin, id, "ASSIGNED", "staffId", "4");
+        assertThrows(ApiException.class, () -> adminService.delete(fixture.admin, 4));
+        assertNotNull(new UserDao().identity(4));
+        fixture.service.confirmResolution(fixture.student, id, Map.of("confirmed", "true"));
+        adminService.delete(fixture.admin, 4);
+        assertNull(new UserDao().identity(4));
+        assertTrue(new UserDao().staff().isEmpty());
+        assertEquals(1, fixture.dao.list(fixture.admin).size());
+    }
+
+    @Test
+    void anotherAdminCanBeDeletedAndCannotActThroughStalePrincipal() throws Exception {
+        long id = adminService.create(fixture.admin, account("other.admin@vit.ac.in", "ADMIN"));
+        User other = new UserDao().identity(id).user();
+        adminService.delete(fixture.admin, id);
+        assertNotNull(new UserDao().identity(fixture.admin.id()));
+        assertThrows(ApiException.class, () -> adminService.delete(other, 2));
+    }
+
+    @Test
+    void userDeletionMigrationIsAdditiveAndRepeatable() throws Exception {
+        try (var c = Database.connect(); var st = c.createStatement()) {
+            st.execute("ALTER TABLE users DROP COLUMN deleted_at");
+        }
+        MigrationTool.main(new String[] { "database/schema.sql" });
+        MigrationTool.main(new String[] { "database/schema.sql" });
+        assertEquals(4, adminService.users(fixture.admin).size());
+        adminService.delete(fixture.admin, 2);
+        assertEquals(3, adminService.users(fixture.admin).size());
+    }
+
+    @Test
     void disablingAndRoleChangesRevokeSessionVersion() throws Exception {
         var users = new UserDao();
         int first = users.identity(1).version();

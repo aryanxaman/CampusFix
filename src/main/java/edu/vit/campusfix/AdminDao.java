@@ -29,7 +29,7 @@ public final class AdminDao {
         boolean authorized = false;
         try (
             PreparedStatement p = c.prepareStatement(
-                "SELECT id,active FROM users WHERE role='ADMIN' ORDER BY id FOR UPDATE"
+                "SELECT id,active FROM users WHERE role='ADMIN' AND deleted_at IS NULL ORDER BY id FOR UPDATE"
             );
             ResultSet r = p.executeQuery()
         ) {
@@ -46,7 +46,7 @@ public final class AdminDao {
         try (
             Connection c = Database.connect();
             PreparedStatement p = c.prepareStatement(
-                "SELECT u.id,u.name,u.email,u.role,u.active,u.created_at,m.specialization,m.available,u.hostel_block FROM users u LEFT JOIN maintenance_staff m ON m.user_id=u.id ORDER BY u.name"
+                "SELECT u.id,u.name,u.email,u.role,u.active,u.created_at,m.specialization,m.available,u.hostel_block FROM users u LEFT JOIN maintenance_staff m ON m.user_id=u.id WHERE u.deleted_at IS NULL ORDER BY u.name"
             );
             ResultSet r = p.executeQuery()
         ) {
@@ -134,7 +134,7 @@ public final class AdminDao {
                 String name;
                 try (
                     PreparedStatement p = c.prepareStatement(
-                        "SELECT role,active,name FROM users WHERE id=? FOR UPDATE"
+                        "SELECT role,active,name FROM users WHERE id=? AND deleted_at IS NULL FOR UPDATE"
                     )
                 ) {
                     p.setLong(1, id);
@@ -158,7 +158,7 @@ public final class AdminDao {
                 ) {
                     try (
                         PreparedStatement p = c.prepareStatement(
-                            "SELECT COUNT(*) FROM users WHERE role='ADMIN' AND active=TRUE"
+                            "SELECT COUNT(*) FROM users WHERE role='ADMIN' AND active=TRUE AND deleted_at IS NULL"
                         );
                         ResultSet r = p.executeQuery()
                     ) {
@@ -241,6 +241,76 @@ public final class AdminDao {
         }
     }
 
+    /** Remove access and directory visibility while retaining foreign-key history. */
+    public void delete(User actor, long id) throws SQLException {
+        try (Connection c = Database.connect()) {
+            c.setAutoCommit(false);
+            try {
+                lockAdmins(c, actor);
+                if (id == actor.id()) throw new ApiException(
+                    409,
+                    "You cannot delete your own administrator account."
+                );
+                String role;
+                boolean active;
+                try (
+                    PreparedStatement p = c.prepareStatement(
+                        "SELECT role,active FROM users WHERE id=? AND deleted_at IS NULL FOR UPDATE"
+                    )
+                ) {
+                    p.setLong(1, id);
+                    try (ResultSet r = p.executeQuery()) {
+                        if (!r.next()) throw new ApiException(404, "User not found.");
+                        role = r.getString(1);
+                        active = r.getBoolean(2);
+                    }
+                }
+                if (role.equals("ADMIN") && active) {
+                    try (
+                        PreparedStatement p = c.prepareStatement(
+                            "SELECT COUNT(*) FROM users WHERE role='ADMIN' AND active=TRUE AND deleted_at IS NULL"
+                        );
+                        ResultSet r = p.executeQuery()
+                    ) {
+                        r.next();
+                        if (r.getLong(1) <= 1) throw new ApiException(
+                            409,
+                            "Keep at least one active administrator."
+                        );
+                    }
+                }
+                try (
+                    PreparedStatement p = c.prepareStatement(
+                        "SELECT id FROM complaints WHERE assigned_staff_id=? AND deleted_at IS NULL AND status NOT IN ('RESOLVED','CLOSED') FOR UPDATE"
+                    )
+                ) {
+                    p.setLong(1, id);
+                    try (ResultSet r = p.executeQuery()) {
+                        if (r.next()) throw new ApiException(
+                            409,
+                            "Reassign active complaints before deleting this user."
+                        );
+                    }
+                }
+                Database.update(
+                    c,
+                    "UPDATE users SET deleted_at=CURRENT_TIMESTAMP,active=FALSE,auth_version=auth_version+1 WHERE id=?",
+                    id
+                );
+                Database.update(
+                    c,
+                    "UPDATE maintenance_staff SET available=FALSE WHERE user_id=?",
+                    id
+                );
+                audit(c, actor, "USER_DELETED", id);
+                c.commit();
+            } catch (SQLException | RuntimeException e) {
+                c.rollback();
+                throw e;
+            }
+        }
+    }
+
     public void resetPassword(User actor, long id, String hash) throws SQLException {
         try (Connection c = Database.connect()) {
             c.setAutoCommit(false);
@@ -249,7 +319,7 @@ public final class AdminDao {
                 if (
                     Database.update(
                         c,
-                        "UPDATE users SET password_hash=?,auth_version=auth_version+1 WHERE id=?",
+                        "UPDATE users SET password_hash=?,auth_version=auth_version+1 WHERE id=? AND deleted_at IS NULL",
                         hash,
                         id
                     ) == 0

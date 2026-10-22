@@ -25,8 +25,8 @@ Use the real application during your explanation. Account details are in the pri
 | 1 minute | Landing page, then Student login | One campus workspace; the server selects the role from the account. |
 | 2 minutes | Report an issue, then My Complaints | Choose type → block → floor → room; add category, urgency and optional photos. Open the complaint to show its timeline. |
 | 2 minutes | Admin → All complaints → complaint details | Review the report, confirm priority and assign an available maintenance specialist. Show the SLA badge. |
-| 1 minute | Staff → Assigned to me | Start work, record a progress remark, then resolve. The staff account only sees its assigned complaints. |
-| 1 minute | Return to the reporting Student | Open the resolved complaint, submit a rating and feedback, then show that it closes. |
+| 1 minute | Staff → Assigned to me | Start work, record a progress remark, then submit the repair for reporter confirmation. The staff account only sees its assigned complaints. |
+| 1 minute | Return to the reporting Student | Confirm the repair, submit a rating and feedback, then show that it closes. |
 | 1 minute | Admin → Analytics, Users and Settings | Show block statistics, staff performance, user roles, reporting limits and SLA policy. |
 
 Use different browsers or separate browser profiles for Student, Admin and Staff if you want their sessions to remain open together. Tabs in the same browser normally share the same login session.
@@ -90,14 +90,14 @@ Photo files are stored outside the web root; MySQL stores their metadata. Readin
 | Student | Report, track own complaints, receive updates and rate resolved work. |
 | Faculty | Report academic-building issues, track own complaints and provide feedback. |
 | Admin | Review, prioritize, assign staff, manage users/settings and inspect analytics. |
-| Maintenance Staff | See assigned work, start repairs, record updates and mark issues resolved. |
+| Maintenance Staff | See assigned work, start repairs, record updates and submit fixes for reporter confirmation. |
 
 Accounts with disabled access cannot sign in. Password resets and role changes invalidate previous session versions. BCrypt hashes are stored in the database.
 
 ## Workflow and SLA
 
 ```text
-Reported → In Review → Assigned → In Progress → Resolved → Feedback → Closed
+Reported → In Review → Assigned → In Progress → Awaiting Confirmation → Resolved → Feedback → Closed
 ```
 
 Admin may assign a reported issue directly after reviewing it, so an explicit In Review event is optional in the implementation. Feedback is an action on a resolved complaint; it closes the complaint rather than creating a separate persisted Feedback status.

@@ -2,23 +2,21 @@
 
 Follow this guide to run the real CampusFix application with Java, Tomcat and MySQL on another Windows computer. This uses a standard installation; the project's `npm run dev` command expects portable server tools that are currently installed only on Aryan's computer.
 
-## 1. Aryan invites the team
 
 1. Open https://github.com/aryanxaman/CampusFix.
 2. Choose **Settings → Collaborators → Add people**.
 3. Enter each teammate's GitHub username and send the invitation.
 4. Each teammate must accept the invitation through GitHub or email.
 
-## 2. Aryan shares the data package
 
-Send **CampusFix-Team-Data-20261022-123605.zip**, saved on Aryan's Desktop, privately to the teammates.
+Send the latest **CampusFix-Team-Data-*.zip** from Aryan's Desktop privately to the teammates. Create a fresh export after changing accounts, complaints or uploads.
 
 It contains:
 
 - `campusfix.sql`: accounts, complaints and other saved records.
 - `LOGIN-DETAILS.txt`: the website account emails and passwords.
 - `IMPORT-INSTRUCTIONS.txt`: database import notes.
-- `uploads/`: complaint photos. This export contained no photo files.
+- `uploads/`: complaint photos included at export time.
 
 The ZIP is a snapshot. Later records and uploads are not included automatically. To create a fresh snapshot on Aryan's machine while the local backend is running, run `python scripts/export-team.py` from the project folder. It creates a new dated ZIP on the Desktop.
 
@@ -111,7 +109,7 @@ New-Item -ItemType Directory -Force -Path $env:CAMPUSFIX_UPLOAD_DIR
 
 Use the same password as Step 6. If MySQL runs on a different port, replace `3306` in the JDBC URL.
 
-Copy the contents of the extracted `uploads` folder into `C:\CampusFixData\uploads`, preserving filenames and subfolders. The current export has no photos, so the destination can remain empty.
+Copy the contents of the extracted `uploads` folder into `C:\CampusFixData\uploads`, preserving filenames and subfolders. If the export has no photos, the destination can remain empty.
 
 These environment variables apply to this terminal and processes started from it. Keep using the same terminal for the build and Tomcat startup below. Repeat the configuration when using a new terminal.
 
@@ -132,6 +130,24 @@ npm.cmd run test:frontend
 ```
 
 ## 9. Deploy and start Tomcat
+
+Before deploying, upgrade the imported database to match the current code. Keep Tomcat stopped, back up the database, then run this in the configured terminal using your own MySQL root password:
+
+```powershell
+$env:CAMPUSFIX_DB_USER = "root"
+$taskMigrationPassword = Read-Host "Your MySQL root password" -AsSecureString
+$env:CAMPUSFIX_DB_PASSWORD = [System.Net.NetworkCredential]::new('', $taskMigrationPassword).Password
+try {
+    & .\scripts\migrate.ps1
+    if (-not $?) { throw "Migration failed. Fix it before starting Tomcat." }
+} finally {
+    Remove-Item Env:CAMPUSFIX_DB_PASSWORD -ErrorAction SilentlyContinue
+    $env:CAMPUSFIX_DB_USER = "campusfix"
+    Remove-Variable taskMigrationPassword -ErrorAction SilentlyContinue
+}
+```
+
+Set `CAMPUSFIX_DB_PASSWORD` back to the application password from Step 6 before starting Tomcat. MigrationTool preserves existing records and adds missing fields, including user deletion and reporter confirmation. Repeat this migration step after future code updates that change the schema. A migration account with suitable privileges can be used instead of root.
 
 Extract the Tomcat 10.1 binary ZIP to a folder. In the same configured PowerShell terminal, replace the example path with the real folder containing Tomcat's `bin`, `conf` and `webapps` directories:
 

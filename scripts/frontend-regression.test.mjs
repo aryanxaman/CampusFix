@@ -50,6 +50,40 @@ const enhancements = readFileSync(
   new URL('../src/main/webapp/assets/enhancements.js', import.meta.url),
   'utf8'
 );
+
+test('User deletion confirmation escapes identity and excludes self/non-admin access', () => {
+  const formSource = enhancements.slice(
+    enhancements.indexOf('function cfDeleteUserForm('),
+    enhancements.indexOf('function cfUserForm(')
+  );
+  let modal;
+  const context = {
+    state: {
+      user: { id: 3 },
+      users: [
+        { id: 1, name: '<img onerror=alert(1)>', email: 'student@vit.ac.in' },
+        { id: 3, name: 'Admin' },
+      ],
+    },
+    isAdmin: () => true,
+    esc: (x) => String(x).replaceAll('<', '&lt;').replaceAll('>', '&gt;'),
+    icon: () => '',
+    openModal: (title, html) => {
+      modal = html;
+    },
+  };
+  const show = vm.runInNewContext(`${formSource}; cfDeleteUserForm;`, context);
+  show(1);
+  assert.match(modal, /name="confirmed" value="true" required/);
+  assert.match(modal, /Complaint history is preserved/);
+  assert.ok(!modal.includes('<img'));
+  modal = null;
+  show(3);
+  assert.equal(modal, null);
+  context.isAdmin = () => false;
+  show(1);
+  assert.equal(modal, null);
+});
 const cardsSource = enhancements.slice(
   enhancements.indexOf('function cfComplaintCards('),
   enhancements.indexOf('complaints = function ()')

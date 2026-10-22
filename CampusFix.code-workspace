@@ -1,11 +1,29 @@
 {
   "folders": [
-    { "name": "Frontend", "path": "src/main/webapp" },
-    { "name": "Backend", "path": "src/main/java/edu/vit/campusfix" },
-    { "name": "Database", "path": "database" },
-    { "name": "Tests", "path": "src/test" },
-    { "name": "Documentation", "path": "docs" },
-    { "name": "Build & Run", "path": "scripts" },
+    {
+      "name": "Frontend",
+      "path": "src/main/webapp"
+    },
+    {
+      "name": "Backend",
+      "path": "src/main/java/edu/vit/campusfix"
+    },
+    {
+      "name": "Database",
+      "path": "database"
+    },
+    {
+      "name": "Tests",
+      "path": "src/test"
+    },
+    {
+      "name": "Documentation",
+      "path": "docs"
+    },
+    {
+      "name": "Build & Run",
+      "path": "scripts"
+    },
     {
       "name": "CampusFix",
       "path": "."
@@ -22,13 +40,10 @@
     "explorer.fileNesting.enabled": true,
     "explorer.fileNesting.expand": false,
     "explorer.fileNesting.patterns": {
-      "VERIFICATION.md": "build-verification.json, deployment-smoke-results.json",
-      "STARTUP-FIX.md": "startup-fix-verification.json",
-      "INDIGO-REDESIGN.md": "indigo-*.png",
-      "EDIT-DELETE-COMPLAINTS.md": "complaint-edit-delete.png, delete-previous-complaint.png, admin-delete-complaint.png",
-      "REPORTER-CONFIRMATION.md": "reporter-confirmation.png, direct-reporter-resolution.png",
-      "SIMPLE-UI.md": "simple-complaints.png, polished-complaints.png",
-      "UPGRADE.md": "upgrade-preview.jpg"
+      "pom.xml": "package.json, compose.yaml, .env.example, .editorconfig, .prettierrc.json, .gitignore, CampusFix.code-workspace, START-PREVIEW.cmd",
+      "package.json": "package-lock.json, npm-shrinkwrap.json",
+      "README.md": "TEAM-SETUP.md, PRESENTATION.md",
+      "build-verification.json": "deployment-smoke-results.json, startup-fix-verification.json"
     },
     "files.exclude": {
       "Frontend": true,

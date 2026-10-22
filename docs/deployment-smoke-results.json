@@ -167,8 +167,20 @@
     "Admin restores Faculty complaint",
     "Admin restore preserves report completion and feedback",
     "Reporter retains own deletion permission",
-    "Admin restores a reporter-deleted complaint"
+    "Admin restores a reporter-deleted complaint",
+    "Managed account signs in before deletion",
+    "Student cannot delete users",
+    "User deletion requires CSRF",
+    "User deletion requires explicit confirmation",
+    "Admin cannot delete their own account",
+    "Admin deletes disposable user",
+    "Deleted user session is revoked",
+    "Deleted user cannot sign in",
+    "Deleted user disappears from user directory",
+    "Deleted user cannot be re-enabled through update",
+    "Deleted user password cannot be reset",
+    "Repeated user deletion is rejected"
   ],
-  "passed": 167,
+  "passed": 179,
   "failed": 0
 }

@@ -628,6 +628,22 @@ for reporter, label, completed in [(student, "Student", False), (faculty, "Facul
     check(reporter.request(f"complaints/{admin_id}/delete", "POST", {})[0] == 200, "Reporter retains own deletion permission")
     check(admin.request(f"complaints/{admin_id}/restore", "POST", {})[0] == 200, "Admin restores a reporter-deleted complaint")
 
+# Disposable account deletion checks do not touch the four shared fixture principals.
+status, delete_login = managed.request("login", "POST", {"email": email, "password": new_password})
+check(status == 200, "Managed account signs in before deletion")
+managed.csrf = delete_login["csrf"]
+check(student.request(f"admin/users/{uid}/delete", "POST", {"confirmed":"true"})[0] == 403, "Student cannot delete users")
+check(admin.request(f"admin/users/{uid}/delete", "POST", {"confirmed":"true"}, csrf=False)[0] == 403, "User deletion requires CSRF")
+check(admin.request(f"admin/users/{uid}/delete", "POST", {})[0] == 400, "User deletion requires explicit confirmation")
+check(admin.request(f'admin/users/{admin_user["id"]}/delete', "POST", {"confirmed":"true"})[0] == 409, "Admin cannot delete their own account")
+check(admin.request(f"admin/users/{uid}/delete", "POST", {"confirmed":"true"})[0] == 200, "Admin deletes disposable user")
+check(managed.request("session")[0] == 401, "Deleted user session is revoked")
+check(Client().request("login", "POST", {"email":email,"password":new_password})[0] == 401, "Deleted user cannot sign in")
+check(all(u["id"] != uid for u in admin.request("admin/users")[1]["users"]), "Deleted user disappears from user directory")
+check(admin.request(f"admin/users/{uid}/update", "POST", {"active":"true"})[0] == 404, "Deleted user cannot be re-enabled through update")
+check(admin.request(f"admin/users/{uid}/password", "POST", {"password":PASSWORD})[0] == 404, "Deleted user password cannot be reset")
+check(admin.request(f"admin/users/{uid}/delete", "POST", {"confirmed":"true"})[0] == 404, "Repeated user deletion is rejected")
+
 report = {
     "environment": f'Real MySQL {health.get("databaseVersion","8.4")} + {health["server"]} + Java {health["java"]}',
     "checks": checks,
