@@ -127,7 +127,8 @@ class AdminAnalyticsDatabaseTest {
         assertNotNull(new UserDao().identity(4));
         // Existing work can still proceed; unavailability only prevents new assignments.
         fixture.update(fixture.staff, id, "IN_PROGRESS");
-        fixture.update(fixture.staff, id, "RESOLVED");
+        fixture.update(fixture.staff, id, "PENDING_CONFIRMATION");
+        fixture.service.confirmResolution(fixture.student, id, Map.of("confirmed", "true"));
         adminService.update(fixture.admin, 4, Map.of("active", "false"));
         assertNull(new UserDao().identity(4));
     }
@@ -212,7 +213,8 @@ class AdminAnalyticsDatabaseTest {
         );
         fixture.update(fixture.admin, id, "ASSIGNED", "staffId", "4");
         fixture.update(fixture.staff, id, "IN_PROGRESS");
-        fixture.update(fixture.staff, id, "RESOLVED");
+        fixture.update(fixture.staff, id, "PENDING_CONFIRMATION");
+        fixture.service.confirmResolution(fixture.student, id, Map.of("confirmed", "true"));
         assertEquals(0, sla.escalate());
         assertEquals(
             false,
@@ -248,7 +250,8 @@ class AdminAnalyticsDatabaseTest {
         fixture.report();
         fixture.update(fixture.admin, first, "ASSIGNED", "staffId", "4");
         fixture.update(fixture.staff, first, "IN_PROGRESS");
-        fixture.update(fixture.staff, first, "RESOLVED");
+        fixture.update(fixture.staff, first, "PENDING_CONFIRMATION");
+        fixture.service.confirmResolution(fixture.student, first, Map.of("confirmed", "true"));
         fixture.service.feedback(
             fixture.student,
             first,

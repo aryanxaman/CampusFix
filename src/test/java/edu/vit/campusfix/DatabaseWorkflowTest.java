@@ -105,7 +105,8 @@ class DatabaseWorkflowTest {
         update(admin, id, "REVIEW");
         update(admin, id, "ASSIGNED", "staffId", "4");
         update(staff, id, "IN_PROGRESS");
-        update(staff, id, "RESOLVED");
+        update(staff, id, "PENDING_CONFIRMATION");
+        service.confirmResolution(student, id, Map.of("confirmed", "true"));
         service.feedback(
             student,
             id,
@@ -114,7 +115,7 @@ class DatabaseWorkflowTest {
         var t = dao.list(student).get(0);
         assertEquals("CLOSED", t.get("status"));
         assertEquals(5, ((Number) t.get("rating")).intValue());
-        assertEquals(6, ((List<?>) t.get("updates")).size());
+        assertEquals(7, ((List<?>) t.get("updates")).size());
         assertEquals(1, dao.list(staff).size());
         assertFalse(dao.notifications(admin).isEmpty());
         assertThrows(ApiException.class, () ->
@@ -171,11 +172,445 @@ class DatabaseWorkflowTest {
         );
         update(admin, id, "ASSIGNED", "staffId", "4");
         update(staff, id, "IN_PROGRESS");
-        update(staff, id, "RESOLVED");
+        update(staff, id, "PENDING_CONFIRMATION");
+        service.confirmResolution(student, id, Map.of("confirmed", "true"));
         assertThrows(ApiException.class, () ->
             service.feedback(faculty, id, Map.of("rating", "5", "comment", "not my complaint"))
         );
         assertEquals("RESOLVED", dao.list(student).get(0).get("status"));
+    }
+
+    @Test
+    void reporterMustConfirmBeforeResolutionAndFeedback() throws Exception {
+        long id = report();
+        assertThrows(ApiException.class, () ->
+            service.confirmResolution(
+                student,
+                id,
+                Map.of("confirmed", "false", "remarks", "No submitted fix yet.")
+            )
+        );
+        update(admin, id, "ASSIGNED", "staffId", "4");
+        update(staff, id, "IN_PROGRESS");
+        assertThrows(ApiException.class, () -> update(staff, id, "RESOLVED"));
+        update(staff, id, "PENDING_CONFIRMATION");
+        assertEquals("PENDING_CONFIRMATION", dao.list(student).get(0).get("status"));
+        assertThrows(ApiException.class, () ->
+            service.feedback(student, id, Map.of("rating", "5", "comment", "Premature feedback"))
+        );
+        for (User other : List.of(admin, staff, faculty))
+            assertThrows(ApiException.class, () ->
+                service.confirmResolution(other, id, Map.of("confirmed", "true"))
+            );
+        assertThrows(ApiException.class, () -> update(admin, id, "PENDING_CONFIRMATION"));
+        assertThrows(ApiException.class, () ->
+            service.confirmResolution(student, id, Map.of("confirmed", "yes"))
+        );
+        service.confirmResolution(student, id, Map.of("confirmed", "true"));
+        assertEquals("RESOLVED", dao.list(student).get(0).get("status"));
+        assertThrows(ApiException.class, () ->
+            service.confirmResolution(student, id, Map.of("confirmed", "true"))
+        );
+        assertTrue(
+            dao
+                .notifications(staff)
+                .stream()
+                .anyMatch(n -> n.get("message").toString().contains("confirmed your fix"))
+        );
+    }
+
+    @Test
+    void reporterCanReturnUnfixedIssueAndConfirmSubsequentRepair() throws Exception {
+        long id = report();
+        update(admin, id, "ASSIGNED", "staffId", "4");
+        update(staff, id, "IN_PROGRESS");
+        update(staff, id, "PENDING_CONFIRMATION");
+        assertThrows(ApiException.class, () ->
+            service.confirmResolution(student, id, Map.of("confirmed", "false", "remarks", ""))
+        );
+        service.confirmResolution(
+            student,
+            id,
+            Map.of("confirmed", "false", "remarks", "The fan is still not rotating.")
+        );
+        assertEquals("IN_PROGRESS", dao.list(student).get(0).get("status"));
+        try (
+            Connection c = Database.connect();
+            PreparedStatement p = c.prepareStatement(
+                "SELECT resolved_at FROM complaints WHERE id=?"
+            )
+        ) {
+            p.setLong(1, id);
+            try (ResultSet rs = p.executeQuery()) {
+                assertTrue(rs.next());
+                assertNull(rs.getTimestamp(1));
+            }
+        }
+        assertThrows(ApiException.class, () ->
+            service.confirmResolution(
+                student,
+                id,
+                Map.of("confirmed", "false", "remarks", "No submitted fix yet.")
+            )
+        );
+        update(staff, id, "PENDING_CONFIRMATION");
+        service.confirmResolution(student, id, Map.of("confirmed", "true"));
+        assertEquals("RESOLVED", dao.list(student).get(0).get("status"));
+    }
+
+    @Test
+    void facultyReporterCanConfirmTheirAcademicComplaint() throws Exception {
+        var data = reportData();
+        data.put("type", "Academic");
+        data.put("block", "SJT");
+        long id = service.report(faculty, data, List.of());
+        update(admin, id, "ASSIGNED", "staffId", "4");
+        update(staff, id, "IN_PROGRESS");
+        update(staff, id, "PENDING_CONFIRMATION");
+        assertThrows(ApiException.class, () ->
+            service.confirmResolution(student, id, Map.of("confirmed", "true"))
+        );
+        service.confirmResolution(faculty, id, Map.of("confirmed", "true"));
+        assertEquals("RESOLVED", dao.list(faculty).get(0).get("status"));
+    }
+
+    @Test
+    void reportersCanResolveTheirOwnIssuesWithoutStaffSubmissionAtEveryOpenStage()
+        throws Exception {
+        for (User reporter : List.of(student, faculty)) {
+            for (String stage : List.of("REPORTED", "REVIEW", "ASSIGNED", "IN_PROGRESS")) {
+                var data = reportData();
+                if (reporter == faculty) {
+                    data.put("type", "Academic");
+                    data.put("block", "SJT");
+                }
+                long id = service.report(reporter, data, List.of());
+                if (stage.equals("REVIEW")) update(admin, id, "REVIEW");
+                if (List.of("ASSIGNED", "IN_PROGRESS").contains(stage)) update(
+                    admin,
+                    id,
+                    "ASSIGNED",
+                    "staffId",
+                    "4"
+                );
+                if (stage.equals("IN_PROGRESS")) update(staff, id, "IN_PROGRESS");
+                for (User other : List.of(admin, staff, reporter == student ? faculty : student))
+                    assertThrows(ApiException.class, () ->
+                        service.confirmResolution(other, id, Map.of("confirmed", "true"))
+                    );
+                service.confirmResolution(reporter, id, Map.of("confirmed", "true"));
+                var ticket = dao
+                    .list(reporter)
+                    .stream()
+                    .filter(t -> ((Number) t.get("id")).longValue() == id)
+                    .findFirst()
+                    .orElseThrow();
+                assertEquals("RESOLVED", ticket.get("status"));
+                assertThrows(ApiException.class, () ->
+                    service.confirmResolution(reporter, id, Map.of("confirmed", "true"))
+                );
+                assertThrows(ApiException.class, () -> update(staff, id, "PENDING_CONFIRMATION"));
+                try (
+                    Connection c = Database.connect();
+                    PreparedStatement p = c.prepareStatement(
+                        "SELECT resolved_at FROM complaints WHERE id=?"
+                    )
+                ) {
+                    p.setLong(1, id);
+                    try (ResultSet rs = p.executeQuery()) {
+                        assertTrue(rs.next());
+                        assertNotNull(rs.getTimestamp(1));
+                    }
+                }
+            }
+        }
+    }
+
+    @Test
+    void reporterEditsOwnComplaintWithoutChangingAnotherReportsSharedLocation() throws Exception {
+        long id = report();
+        long other = report();
+        var data = reportData();
+        data.put("title", "Updated fan complaint");
+        data.put("room", "313");
+        data.put("priority", "LOW");
+        service.manageOwn(student, id, "edit", data);
+        var tickets = dao.list(student);
+        var edited = tickets
+            .stream()
+            .filter(t -> ((Number) t.get("id")).longValue() == id)
+            .findFirst()
+            .orElseThrow();
+        var unchanged = tickets
+            .stream()
+            .filter(t -> ((Number) t.get("id")).longValue() == other)
+            .findFirst()
+            .orElseThrow();
+        assertEquals("Updated fan complaint", edited.get("title"));
+        assertEquals("313", edited.get("room"));
+        assertEquals("LOW", edited.get("priority"));
+        assertEquals("312", unchanged.get("room"));
+        data.put("block", "N");
+        assertThrows(ApiException.class, () -> service.manageOwn(student, id, "edit", data));
+        assertEquals("K", dao.list(student).get(0).get("block"));
+    }
+
+    @Test
+    void deletionIsRecoverableAndPreservesPhotosAndHistory() throws Exception {
+        long id = service.report(
+            student,
+            reportData(),
+            List.of(new ComplaintDao.Upload("keep.jpg", "image/jpeg", 200, "photo.jpg"))
+        );
+        update(admin, id, "ASSIGNED", "staffId", "4");
+        var photo = (Map<?, ?>) ((List<?>) dao.list(student).get(0).get("attachments")).get(0);
+        long aid = ((Number) photo.get("id")).longValue();
+        service.manageOwn(student, id, "delete", Map.of());
+        assertTrue(dao.list(student).isEmpty());
+        assertTrue(dao.list(admin).isEmpty());
+        assertTrue(dao.list(staff).isEmpty());
+        assertEquals(1, dao.list(student, true).size());
+        assertThrows(ApiException.class, () -> dao.attachment(student, aid));
+        assertThrows(ApiException.class, () ->
+            service.confirmResolution(student, id, Map.of("confirmed", "true"))
+        );
+        assertThrows(ApiException.class, () -> update(staff, id, "IN_PROGRESS"));
+        service.manageOwn(student, id, "restore", Map.of());
+        var restored = dao.list(student).get(0);
+        assertEquals("REPORTED", restored.get("status"));
+        assertNull(restored.get("assignedStaffId"));
+        assertEquals("keep.jpg", dao.attachment(student, aid).filePath());
+        assertEquals(4, ((List<?>) restored.get("updates")).size());
+        assertTrue(dao.list(student, true).isEmpty());
+        assertThrows(ApiException.class, () -> service.manageOwn(student, id, "restore", Map.of()));
+    }
+
+    @Test
+    void onlyOwnerCanEditDeleteOrRestoreComplaint() throws Exception {
+        long id = report();
+        for (User other : List.of(staff, faculty)) {
+            for (String action : List.of("edit", "delete", "restore"))
+                assertThrows(ApiException.class, () ->
+                    service.manageOwn(other, id, action, reportData())
+                );
+        }
+        assertThrows(ApiException.class, () -> service.manageOwn(admin, id, "edit", reportData()));
+        service.manageOwn(student, id, "delete", Map.of());
+        assertTrue(dao.list(faculty, true).isEmpty());
+        assertEquals(1, dao.list(admin, true).size());
+        assertThrows(ApiException.class, () -> service.manageOwn(student, id, "delete", Map.of()));
+    }
+
+    @Test
+    void editingCannotRacePastStartedWorkOrResolution() throws Exception {
+        long id = report();
+        update(admin, id, "ASSIGNED", "staffId", "4");
+        update(staff, id, "IN_PROGRESS");
+        for (String action : List.of("edit"))
+            assertThrows(ApiException.class, () ->
+                service.manageOwn(student, id, action, reportData())
+            );
+        service.confirmResolution(student, id, Map.of("confirmed", "true"));
+        for (String action : List.of("edit"))
+            assertThrows(ApiException.class, () ->
+                service.manageOwn(student, id, action, reportData())
+            );
+        assertEquals("RESOLVED", dao.list(student).get(0).get("status"));
+    }
+
+    @Test
+    void invalidEditRollsBackAndFacultyCanManageAcademicReports() throws Exception {
+        var data = reportData();
+        data.put("type", "Academic");
+        data.put("block", "SJT");
+        long id = service.report(faculty, data, List.of());
+        data.put("description", "short");
+        assertThrows(ApiException.class, () -> service.manageOwn(faculty, id, "edit", data));
+        assertEquals(1, ((List<?>) dao.list(faculty).get(0).get("updates")).size());
+        data.put("description", "Updated academic classroom fan report.");
+        service.manageOwn(faculty, id, "edit", data);
+        service.manageOwn(faculty, id, "delete", Map.of());
+        service.manageOwn(faculty, id, "restore", Map.of());
+        assertEquals(
+            "Updated academic classroom fan report.",
+            dao.list(faculty).get(0).get("description")
+        );
+    }
+
+    @Test
+    void completedComplaintsCanBeDeletedAndRestoredWithoutLosingResolutionOrFeedback()
+        throws Exception {
+        for (User reporter : List.of(student, faculty)) {
+            for (boolean closed : List.of(false, true)) {
+                var data = reportData();
+                if (reporter == faculty) {
+                    data.put("type", "Academic");
+                    data.put("block", "SJT");
+                }
+                long id = service.report(reporter, data, List.of());
+                update(admin, id, "ASSIGNED", "staffId", "4");
+                service.confirmResolution(reporter, id, Map.of("confirmed", "true"));
+                if (closed) service.feedback(
+                    reporter,
+                    id,
+                    Map.of("rating", "4", "comment", "The repair was completed.")
+                );
+                var before = dao
+                    .list(reporter)
+                    .stream()
+                    .filter(t -> ((Number) t.get("id")).longValue() == id)
+                    .findFirst()
+                    .orElseThrow();
+                service.manageOwn(reporter, id, "delete", Map.of());
+                assertTrue(
+                    dao
+                        .list(reporter)
+                        .stream()
+                        .noneMatch(t -> ((Number) t.get("id")).longValue() == id)
+                );
+                assertTrue(
+                    dao
+                        .list(reporter, true)
+                        .stream()
+                        .anyMatch(t -> ((Number) t.get("id")).longValue() == id)
+                );
+                service.manageOwn(reporter, id, "restore", Map.of());
+                var restored = dao
+                    .list(reporter)
+                    .stream()
+                    .filter(t -> ((Number) t.get("id")).longValue() == id)
+                    .findFirst()
+                    .orElseThrow();
+                assertEquals(closed ? "CLOSED" : "RESOLVED", restored.get("status"));
+                for (String key : List.of("resolvedAt", "rating", "feedback", "assignedStaffId"))
+                    assertEquals(before.get(key), restored.get(key));
+                assertThrows(ApiException.class, () ->
+                    service.confirmResolution(reporter, id, Map.of("confirmed", "true"))
+                );
+            }
+        }
+    }
+
+    @Test
+    void inProgressAndPendingComplaintsCanBeDeletedAndRestoredForFreshReview() throws Exception {
+        for (String stage : List.of("IN_PROGRESS", "PENDING_CONFIRMATION")) {
+            long id = report();
+            update(admin, id, "ASSIGNED", "staffId", "4");
+            update(staff, id, "IN_PROGRESS");
+            if (stage.equals("PENDING_CONFIRMATION")) update(staff, id, stage);
+            service.manageOwn(student, id, "delete", Map.of());
+            assertThrows(ApiException.class, () -> update(staff, id, "PENDING_CONFIRMATION"));
+            service.manageOwn(student, id, "restore", Map.of());
+            var restored = dao
+                .list(student)
+                .stream()
+                .filter(t -> ((Number) t.get("id")).longValue() == id)
+                .findFirst()
+                .orElseThrow();
+            assertEquals("REPORTED", restored.get("status"));
+            assertNull(restored.get("assignedStaffId"));
+        }
+    }
+
+    @Test
+    void adminCanDeleteAndRestoreAnyComplaintAtEveryStageWithoutGainingEditRights()
+        throws Exception {
+        for (String stage : List.of(
+            "REPORTED",
+            "REVIEW",
+            "ASSIGNED",
+            "IN_PROGRESS",
+            "PENDING_CONFIRMATION",
+            "RESOLVED",
+            "CLOSED"
+        )) {
+            long id = report();
+            if (stage.equals("REVIEW")) update(admin, id, "REVIEW");
+            if (!List.of("REPORTED", "REVIEW").contains(stage)) update(
+                admin,
+                id,
+                "ASSIGNED",
+                "staffId",
+                "4"
+            );
+            if (
+                List.of("IN_PROGRESS", "PENDING_CONFIRMATION", "RESOLVED", "CLOSED").contains(stage)
+            ) update(staff, id, "IN_PROGRESS");
+            if (stage.equals("PENDING_CONFIRMATION")) update(staff, id, stage);
+            if (List.of("RESOLVED", "CLOSED").contains(stage)) service.confirmResolution(
+                student,
+                id,
+                Map.of("confirmed", "true")
+            );
+            if (stage.equals("CLOSED")) service.feedback(
+                student,
+                id,
+                Map.of("rating", "5", "comment", "The repair is complete.")
+            );
+            var before = dao
+                .list(admin)
+                .stream()
+                .filter(t -> ((Number) t.get("id")).longValue() == id)
+                .findFirst()
+                .orElseThrow();
+            assertThrows(ApiException.class, () ->
+                service.manageOwn(admin, id, "edit", reportData())
+            );
+            assertThrows(ApiException.class, () ->
+                service.manageOwn(staff, id, "delete", Map.of())
+            );
+            service.manageOwn(admin, id, "delete", Map.of());
+            assertTrue(
+                dao
+                    .list(student)
+                    .stream()
+                    .noneMatch(t -> ((Number) t.get("id")).longValue() == id)
+            );
+            var archived = dao
+                .list(admin, true)
+                .stream()
+                .filter(t -> ((Number) t.get("id")).longValue() == id)
+                .findFirst()
+                .orElseThrow();
+            var updates = (List<?>) archived.get("updates");
+            assertTrue(
+                ((Map<?, ?>) updates.get(updates.size() - 1))
+                    .get("remarks")
+                    .toString()
+                    .startsWith("Admin deleted")
+            );
+            assertTrue(
+                dao
+                    .notifications(student)
+                    .stream()
+                    .anyMatch(n -> n.get("message").toString().contains("administrator deleted"))
+            );
+            assertThrows(ApiException.class, () ->
+                service.manageOwn(faculty, id, "restore", Map.of())
+            );
+            service.manageOwn(admin, id, "restore", Map.of());
+            var restored = dao
+                .list(student)
+                .stream()
+                .filter(t -> ((Number) t.get("id")).longValue() == id)
+                .findFirst()
+                .orElseThrow();
+            assertEquals(
+                List.of("RESOLVED", "CLOSED").contains(stage) ? stage : "REPORTED",
+                restored.get("status")
+            );
+            for (String key : List.of("resolvedAt", "rating", "feedback"))
+                assertEquals(before.get(key), restored.get(key));
+        }
+    }
+
+    @Test
+    void adminCanRestoreAReportDeletedByItsReporter() throws Exception {
+        long id = report();
+        service.manageOwn(student, id, "delete", Map.of());
+        service.manageOwn(admin, id, "restore", Map.of());
+        assertEquals("REPORTED", dao.list(student).get(0).get("status"));
+        assertThrows(ApiException.class, () -> service.manageOwn(admin, id, "restore", Map.of()));
     }
 
     @Test

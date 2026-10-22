@@ -12,13 +12,22 @@ const nice = (s) =>
     .toLowerCase()
     .replaceAll('_', ' ')
     .replace(/\b\w/g, (c) => c.toUpperCase());
-const statuses = ['REPORTED', 'REVIEW', 'ASSIGNED', 'IN_PROGRESS', 'RESOLVED', 'CLOSED'];
+const statuses = [
+  'REPORTED',
+  'REVIEW',
+  'ASSIGNED',
+  'IN_PROGRESS',
+  'PENDING_CONFIRMATION',
+  'RESOLVED',
+  'CLOSED',
+];
 const statusLabel = (s) =>
   ({
     REPORTED: 'Submitted',
     REVIEW: 'Under review',
     ASSIGNED: 'Assigned',
     IN_PROGRESS: 'In progress',
+    PENDING_CONFIRMATION: 'Awaiting confirmation',
     RESOLVED: 'Resolved',
     CLOSED: 'Closed',
   })[s] || s;
@@ -82,7 +91,7 @@ const timeAgo = (d) => {
   return h < 1 ? 'Just now' : h < 24 ? `${h}h ago` : `${Math.floor(h / 24)}d ago`;
 };
 const brand = () =>
-  `<a href="#" class="brand" data-action="home" aria-label="CampusFix home"><img class="campusfix-symbol" src="assets/campusfix-logo.svg" alt="" width="42" height="42"><div class="campusfix-wordmark">campus<span>fix</span></div></a>`;
+  `<a href="#" class="brand" data-action="home" aria-label="CampusFix home"><img class="campusfix-symbol" src="assets/campusfix-logo.svg?v=20261022-indigo" alt="" width="42" height="42"><div class="campusfix-wordmark">campus<span>fix</span></div></a>`;
 const campusArt = () =>
   `<div class="campus-art" aria-hidden="true"><span class="sun"></span><div class="building b1"></div><div class="building b2"></div><div class="building b3"></div><div class="tree"></div></div>`;
 const statusBadge = (s) =>
@@ -95,7 +104,8 @@ const canReport = () => ['STUDENT', 'FACULTY'].includes(state.user?.role);
 const myTickets = () =>
   state.tickets.filter(
     (t) =>
-      isAdmin() || (isStaff() ? t.assignedStaffId === state.user.id : t.userId === state.user.id)
+      !t.deletedAt &&
+      (isAdmin() || (isStaff() ? t.assignedStaffId === state.user.id : t.userId === state.user.id))
   );
 function sampleData() {
   const now = Date.now(),
@@ -516,7 +526,9 @@ function stats() {
     },
     {
       label: 'Awaiting action',
-      value: ts.filter((t) => ['REPORTED', 'REVIEW', 'ASSIGNED'].includes(t.status)).length,
+      value: ts.filter((t) =>
+        ['REPORTED', 'REVIEW', 'ASSIGNED', 'PENDING_CONFIRMATION'].includes(t.status)
+      ).length,
       ico: 'hourglass-split',
       foot: 'Reported, reviewed or assigned',
     },
@@ -546,7 +558,7 @@ function overview() {
       `Hello, ${first} <span style="font-size:23px">✳</span>`,
       `Here’s what’s happening ${isAdmin() ? 'across your campus' : isStaff() ? 'with your assignments' : 'with your campus today'}.`
     ) +
-    `<div class="stat-grid">${stats()}</div><div class="dashboard-grid"><div><section class="panel"><div class="panel-head"><div><h2>${isAdmin() ? 'Recent complaints' : isStaff() ? 'Your assignments' : 'My recent complaints'}</h2></div><button class="text-link" data-action="nav" data-page="complaints">View all ${icon('arrow-right')}</button></div>${filters(true)}${ticketTable(filteredTickets().slice(0, 5))}<div class="table-footer"><span>Showing ${Math.min(5, filteredTickets().length)} of ${filteredTickets().length} complaints</span><span>Updated just now</span></div></section><section class="panel chart-panel"><div class="panel-head"><div><h2>Complaint activity</h2><p>Last 7 days</p></div><div class="chart-legend"><span><i class="legend-dot" style="background:#eaa17e"></i>Reported</span><span><i class="legend-dot" style="background:#8da99a"></i>Resolved</span></div></div><div class="chart-box"><canvas id="activity-chart" aria-label="Complaints reported and resolved during the last seven days" role="img"></canvas></div></section></div><aside class="dashboard-aside"><section class="panel"><div class="panel-head"><h2>Recent activity</h2><span class="muted">${icon('clock-history')}</span></div><div class="activity-list">${recentActivity()}</div><div style="padding:13px 22px;border-top:1px solid var(--line)"><button class="text-link" data-action="nav" data-page="notifications">All notifications ${icon('arrow-right')}</button></div></section><section class="help-card"><div class="help-icon">${icon('chat-dots')}</div><h3>A little help?</h3><p>Not sure where to start? We’re here to help you find the right next step.</p><button data-action="nav" data-page="help">Visit help center ${icon('arrow-up-right')}</button></section></aside></div>`
+    `<div class="stat-grid">${stats()}</div><div class="dashboard-grid"><div><section class="panel"><div class="panel-head"><div><h2>${isAdmin() ? 'Recent complaints' : isStaff() ? 'Your assignments' : 'My recent complaints'}</h2></div><button class="text-link" data-action="nav" data-page="complaints">View all ${icon('arrow-right')}</button></div>${filters(true)}${ticketTable(filteredTickets().slice(0, 5))}<div class="table-footer"><span>Showing ${Math.min(5, filteredTickets().length)} of ${filteredTickets().length} complaints</span><span>Updated just now</span></div></section><section class="panel chart-panel"><div class="panel-head"><div><h2>Complaint activity</h2><p>Last 7 days</p></div><div class="chart-legend"><span><i class="legend-dot" style="background:#6367e7"></i>Reported</span><span><i class="legend-dot" style="background:#26a88a"></i>Resolved</span></div></div><div class="chart-box"><canvas id="activity-chart" aria-label="Complaints reported and resolved during the last seven days" role="img"></canvas></div></section></div><aside class="dashboard-aside"><section class="panel"><div class="panel-head"><h2>Recent activity</h2><span class="muted">${icon('clock-history')}</span></div><div class="activity-list">${recentActivity()}</div><div style="padding:13px 22px;border-top:1px solid var(--line)"><button class="text-link" data-action="nav" data-page="notifications">All notifications ${icon('arrow-right')}</button></div></section><section class="help-card"><div class="help-icon">${icon('chat-dots')}</div><h3>A little help?</h3><p>Not sure where to start? We’re here to help you find the right next step.</p><button data-action="nav" data-page="help">Visit help center ${icon('arrow-up-right')}</button></section></aside></div>`
   );
 }
 function recentActivity() {
@@ -613,7 +625,7 @@ function board() {
     `<div class="board">${[
       ['REPORTED', 'REVIEW'],
       ['ASSIGNED'],
-      ['IN_PROGRESS'],
+      ['IN_PROGRESS', 'PENDING_CONFIRMATION'],
       ['RESOLVED', 'CLOSED'],
     ]
       .map((ss, i) => {
@@ -803,12 +815,12 @@ function renderCharts() {
             {
               label: 'Reported',
               data: count(ts, 'createdAt'),
-              borderColor: '#e29a77',
-              backgroundColor: '#e29a7712',
+              borderColor: '#6367e7',
+              backgroundColor: '#6367e712',
               fill: true,
               borderWidth: 2,
               pointRadius: 3,
-              pointBackgroundColor: '#e29a77',
+              pointBackgroundColor: '#6367e7',
               tension: 0.4,
             },
             {
@@ -822,8 +834,8 @@ function renderCharts() {
                   })),
                 'resolvedAt'
               ),
-              borderColor: '#8aa797',
-              backgroundColor: '#8aa79708',
+              borderColor: '#26a88a',
+              backgroundColor: '#26a88a08',
               fill: true,
               borderWidth: 2,
               pointRadius: 3,
@@ -864,14 +876,14 @@ function renderCharts() {
             {
               data: categories.map((c) => ts.filter((t) => t.category === c).length),
               backgroundColor: [
-                '#e8a281',
-                '#87a697',
-                '#a7b6cd',
-                '#d5c7a5',
-                '#c3b6cb',
-                '#91bfc0',
-                '#b6c7a6',
-                '#bbc1c5',
+                '#6367e7',
+                '#26a88a',
+                '#5e9ae6',
+                '#d7af5b',
+                '#9a7cd4',
+                '#59b8c3',
+                '#8bb99a',
+                '#9ca9c4',
               ],
               borderWidth: 3,
             },
@@ -920,7 +932,7 @@ function detail(id) {
   openModal(
     `Complaint CF-${t.id}`,
     `${statusBadge(t.status)}<h1 class="detail-title">${esc(t.title)}</h1><div class="detail-meta">${priorityBadge(t.priority)}<span class="muted" style="font-size:11px">${icon('tag')} ${esc(t.category)}</span></div><p>${esc(t.description)}</p><div class="detail-info"><div><small>Location</small>${esc(t.block)} ${t.type === 'Hostel' ? 'Block' : 'Building'} · Floor ${esc(t.floor)}<br>${esc(t.room)}</div><div><small>Reported by</small>${esc(t.reporter)}<br><span class="muted" style="font-size:10px">${date(t.createdAt)}</span></div><div><small>Assigned to</small>${esc(t.assignedStaff || 'Awaiting assignment')}</div><div><small>Last update</small>${timeAgo(t.updatedAt)}</div></div>${t.attachments?.length ? `<h3>Photos</h3><div class="previews">${t.attachments.map((a) => `<a href="${esc(state.demo ? a.url : 'api/attachment/' + a.id)}" target="_blank" rel="noopener"><img style="width:110px;height:85px;object-fit:cover;border-radius:8px" src="${esc(state.demo ? a.url : 'api/attachment/' + a.id)}" alt="Complaint evidence"></a>`).join('')}</div>` : ''}<h3 style="margin-top:25px">Every step, in the open.</h3><div class="timeline">${(t.updates || []).map((u) => `<article class="timeline-item"><strong>${statusLabel(u.status)}</strong><p>${esc(u.remarks)}</p><time>${esc(u.actor)} · ${date(u.createdAt)} · ${timeAgo(u.createdAt)}</time></article>`).join('')}</div>${
-      isAdmin() && !['RESOLVED', 'CLOSED'].includes(t.status)
+      isAdmin() && !['PENDING_CONFIRMATION', 'RESOLVED', 'CLOSED'].includes(t.status)
         ? `<form id="workflow-form" data-id="${t.id}"><h3>Move this issue forward.</h3><div class="form-grid"><div class="field"><label for="workflow-priority">Priority</label><select id="workflow-priority" name="priority">${['LOW', 'MEDIUM', 'HIGH', 'URGENT'].map((p) => `<option ${t.priority === p ? 'selected' : ''}>${p}</option>`).join('')}</select></div><div class="field"><label for="workflow-staff">Assign staff</label><select id="workflow-staff" name="staffId"><option value="">Choose maintenance staff</option>${state.staff.map((s) => `<option value="${s.id}" ${t.assignedStaffId === s.id ? 'selected' : ''}>${esc(s.name)} · ${esc(s.specialization)}</option>`).join('')}</select></div></div><div class="field"><label for="workflow-status">Status</label><select id="workflow-status" name="status">${[
             t.status,
             ...(t.status === 'REPORTED'
@@ -935,7 +947,7 @@ function detail(id) {
               ''
             )}</select></div><div class="field"><label for="workflow-remarks">Update note *</label><textarea id="workflow-remarks" name="remarks" required minlength="5" maxlength="1000" placeholder="Share the next step with the reporter."></textarea></div><button class="btn-primary" type="submit">Save update ${icon('check2')}</button></form>`
         : ''
-    }${isStaff() && t.assignedStaffId === state.user.id && ['ASSIGNED', 'IN_PROGRESS'].includes(t.status) ? `<form id="workflow-form" data-id="${t.id}"><h3>Share your progress.</h3><div class="field"><label for="workflow-status">Status</label><select id="workflow-status" name="status">${(t.status === 'ASSIGNED' ? ['IN_PROGRESS'] : ['IN_PROGRESS', 'RESOLVED']).map((s) => `<option value="${s}">${statusLabel(s)}</option>`).join('')}</select></div><div class="field"><label for="workflow-remarks">Work notes *</label><textarea id="workflow-remarks" required minlength="5" maxlength="1000" name="remarks" placeholder="What have you checked or fixed?"></textarea></div><button class="btn-primary" type="submit">Update progress ${icon('arrow-right')}</button></form>` : ''}${owner && t.status === 'RESOLVED' ? `<form id="feedback-form" data-id="${t.id}"><h3>How did we do?</h3><p>Your feedback helps us care for campus better.</p><div class="stars" role="group" aria-label="Service rating">${[1, 2, 3, 4, 5].map((n) => `<button class="star selected" type="button" data-action="rate" data-rating="${n}" aria-label="${n} stars" aria-pressed="true">${icon('star-fill')}</button>`).join('')}</div><div class="field" style="margin-top:15px"><label for="feedback">Your feedback *</label><textarea id="feedback" name="comment" required minlength="3" maxlength="1000" placeholder="Tell us about the fix."></textarea></div><button class="btn-primary" type="submit">Send feedback & close ${icon('check2-circle')}</button></form>` : ''}${t.rating ? `<div class="notice"><strong>${'★'.repeat(t.rating)}${'☆'.repeat(5 - t.rating)} · Community feedback</strong><p style="margin:8px 0 0">${esc(t.feedback)}</p></div>` : ''}`
+    }${isStaff() && t.assignedStaffId === state.user.id && ['ASSIGNED', 'IN_PROGRESS'].includes(t.status) ? `<form id="workflow-form" data-id="${t.id}"><h3>Share your progress.</h3><p class="muted">After completing the repair, choose Awaiting confirmation. The reporter will check and confirm the fix.</p><div class="field"><label for="workflow-status">Status</label><select id="workflow-status" name="status">${(t.status === 'ASSIGNED' ? ['IN_PROGRESS'] : ['IN_PROGRESS', 'PENDING_CONFIRMATION']).map((s) => `<option value="${s}">${statusLabel(s)}</option>`).join('')}</select></div><div class="field"><label for="workflow-remarks">Work notes *</label><textarea id="workflow-remarks" required minlength="5" maxlength="1000" name="remarks" placeholder="What have you checked or fixed?"></textarea></div><button class="btn-primary" type="submit">Update progress ${icon('arrow-right')}</button></form>` : ''}${(owner && !['RESOLVED', 'CLOSED'].includes(t.status)) || t.status === 'PENDING_CONFIRMATION' ? resolutionConfirmation(t, owner) : ''}${owner && t.status === 'RESOLVED' ? `<form id="feedback-form" data-id="${t.id}"><h3>How did we do?</h3><p>Your feedback helps us care for campus better.</p><div class="stars" role="group" aria-label="Service rating">${[1, 2, 3, 4, 5].map((n) => `<button class="star selected" type="button" data-action="rate" data-rating="${n}" aria-label="${n} stars" aria-pressed="true">${icon('star-fill')}</button>`).join('')}</div><div class="field" style="margin-top:15px"><label for="feedback">Your feedback *</label><textarea id="feedback" name="comment" required minlength="3" maxlength="1000" placeholder="Tell us about the fix."></textarea></div><button class="btn-primary" type="submit">Send feedback & close ${icon('check2-circle')}</button></form>` : ''}${t.rating ? `<div class="notice"><strong>${'★'.repeat(t.rating)}${'☆'.repeat(5 - t.rating)} · Community feedback</strong><p style="margin:8px 0 0">${esc(t.feedback)}</p></div>` : ''}`
   );
 }
 function demoNotify(t, message) {
@@ -1027,6 +1039,53 @@ async function submitWorkflow(form) {
   detail(t.id);
   toast('Update saved. Everyone stays in the loop.');
 }
+function resolutionConfirmation(t, owner) {
+  const pending = t.status === 'PENDING_CONFIRMATION';
+  if (!owner)
+    return pending
+      ? `<section class="resolution-review"><h3>${icon('person-check')} Awaiting reporter confirmation</h3><p>The reporter must check and confirm whether the issue is resolved.</p></section>`
+      : '';
+  if (['RESOLVED', 'CLOSED'].includes(t.status)) return '';
+  return `<section class="resolution-review"><h3>${icon('shield-check')} Is your issue fixed?</h3><p>${pending ? 'Staff have completed their work. Please check the issue before confirming.' : 'If the problem is already fixed, you can mark it resolved now. You do not need to wait for staff.'}</p><form id="resolution-confirm-form" data-id="${t.id}"><label class="resolution-check"><input type="checkbox" name="confirmed" required><span>I checked and confirm that my problem is resolved.</span></label><button class="btn-primary" type="submit">${pending ? 'Confirm resolution' : 'Mark as resolved'} ${icon('check2-circle')}</button></form>${pending ? `<details class="resolution-return"><summary>Still having the problem?</summary><form id="resolution-reject-form" data-id="${t.id}"><div class="field"><label for="resolution-remarks">What still needs fixing?</label><textarea id="resolution-remarks" name="remarks" required minlength="5" maxlength="1000" placeholder="Tell the maintenance team what is still wrong."></textarea></div><button class="btn-outline" type="submit">Send back to staff ${icon('arrow-counterclockwise')}</button></form></details>` : ''}</section>`;
+}
+
+async function submitResolutionConfirmation(form) {
+  const t = myTickets().find((t) => t.id === Number(form.dataset.id));
+  const confirmed = form.id === 'resolution-confirm-form';
+  if (confirmed && !form.querySelector('[name="confirmed"]').checked)
+    throw Error('Please check the confirmation box.');
+  const data = {
+    confirmed: String(confirmed),
+    remarks: confirmed ? '' : new FormData(form).get('remarks'),
+  };
+  if (state.demo) {
+    t.status = confirmed ? 'RESOLVED' : 'IN_PROGRESS';
+    t.updatedAt = new Date().toISOString();
+    t.updates.push({
+      status: t.status,
+      remarks: confirmed ? 'Reporter confirmed that the issue is resolved.' : data.remarks,
+      actor: state.user.name,
+      createdAt: t.updatedAt,
+    });
+    demoNotify(
+      t,
+      confirmed ? 'Fix confirmed. You can now rate the service.' : 'Complaint returned to staff.'
+    );
+    saveDemo();
+  } else {
+    await api(`complaints/${t.id}/confirm`, { method: 'POST', body: JSON.stringify(data) });
+    await refresh();
+  }
+  closeModal();
+  render();
+  detail(t.id);
+  toast(
+    confirmed
+      ? 'Resolution confirmed. You can now rate the service.'
+      : 'Sent back to staff for further work.'
+  );
+}
+
 async function submitFeedback(form) {
   const t = myTickets().find((t) => t.id === Number(form.dataset.id)),
     data = { rating: state.rating, comment: new FormData(form).get('comment') };
@@ -1188,7 +1247,16 @@ function renderChartsAfterTheme() {
   requestAnimationFrame(renderCharts);
 }
 document.addEventListener('submit', async (e) => {
-  if (!['login-form', 'report-form', 'workflow-form', 'feedback-form'].includes(e.target.id))
+  if (
+    ![
+      'login-form',
+      'report-form',
+      'workflow-form',
+      'feedback-form',
+      'resolution-confirm-form',
+      'resolution-reject-form',
+    ].includes(e.target.id)
+  )
     return;
   e.preventDefault();
   const f = e.target,
@@ -1207,6 +1275,7 @@ document.addEventListener('submit', async (e) => {
       toast('Welcome to your campus workspace.');
     } else if (f.id === 'report-form') await submitReport(f);
     else if (f.id === 'workflow-form') await submitWorkflow(f);
+    else if (f.id.startsWith('resolution-')) await submitResolutionConfirmation(f);
     else await submitFeedback(f);
   } catch (err) {
     toast(err.message, true);

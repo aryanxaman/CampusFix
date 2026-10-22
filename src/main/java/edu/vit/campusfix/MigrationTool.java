@@ -41,6 +41,25 @@ public final class MigrationTool {
                     }
                 }
             }
+            try (
+                ResultSet columns = c
+                    .getMetaData()
+                    .getColumns(c.getCatalog(), null, "complaints", "deleted_at")
+            ) {
+                if (!columns.next()) {
+                    try (
+                        ResultSet tables = c
+                            .getMetaData()
+                            .getTables(c.getCatalog(), null, "complaints", new String[] { "TABLE" })
+                    ) {
+                        if (tables.next()) try (Statement st = c.createStatement()) {
+                            st.execute(
+                                "ALTER TABLE complaints ADD COLUMN deleted_at TIMESTAMP NULL"
+                            );
+                        }
+                    }
+                }
+            }
             String schema = Files.readString(Path.of(args[0]))
                 .replaceAll("(?m)^CREATE DATABASE[^;]+;", "")
                 .replaceAll("(?m)^USE [^;]+;", "")
@@ -49,6 +68,22 @@ public final class MigrationTool {
                 if (!sql.isBlank()) try (Statement s = c.createStatement()) {
                     s.execute(sql);
                 }
+            if (c.getMetaData().getDatabaseProductName().toLowerCase().contains("mysql")) {
+                String type = "";
+                try (
+                    Statement st = c.createStatement();
+                    ResultSet rs = st.executeQuery("SHOW COLUMNS FROM complaints LIKE 'status'")
+                ) {
+                    if (rs.next()) type = rs.getString("Type");
+                }
+                if (!type.contains("PENDING_CONFIRMATION")) try (
+                    Statement st = c.createStatement()
+                ) {
+                    st.execute(
+                        "ALTER TABLE complaints MODIFY COLUMN status ENUM('REPORTED','REVIEW','ASSIGNED','IN_PROGRESS','RESOLVED','CLOSED','PENDING_CONFIRMATION') NOT NULL DEFAULT 'REPORTED'"
+                    );
+                }
+            }
             System.out.println(
                 "CampusFix schema is ready. Existing users, complaints, photos and feedback were preserved."
             );

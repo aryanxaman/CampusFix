@@ -43,7 +43,7 @@ test('Complaint lifecycle shows real stage totals and supports an empty workspac
   assert.match(html, /In progress: 0 complaints/);
   assert.match(html, /3 complaints/);
   assert.match(serviceJourney([]), /0 complaints/);
-  assert.equal((html.match(/data-journey-filter=/g) || []).length, 6);
+  assert.equal((html.match(/data-journey-filter=/g) || []).length, 7);
 });
 
 const enhancements = readFileSync(
@@ -111,4 +111,142 @@ test('Dashboard activity shows each complaint once using its latest update', () 
   assert.equal((html.match(/Fan issue/g) || []).length, 1);
   assert.match(html, /ASSIGNED · CF-1/);
   assert.match(html, /Tap leak/);
+});
+
+const confirmationSource = source.slice(
+  source.indexOf('function resolutionConfirmation('),
+  source.indexOf('async function submitResolutionConfirmation(')
+);
+const resolutionConfirmation = vm.runInNewContext(
+  `${confirmationSource}; resolutionConfirmation;`,
+  {
+    icon: () => '',
+  }
+);
+test('Reporter gets explicit required confirmation and an option to return the repair', () => {
+  const html = resolutionConfirmation({ id: 12, status: 'PENDING_CONFIRMATION' }, true);
+  assert.match(html, /id="resolution-confirm-form" data-id="12"/);
+  assert.match(html, /type="checkbox" name="confirmed" required/);
+  assert.match(html, /I checked and confirm/);
+  assert.match(html, /id="resolution-reject-form"/);
+  assert.match(html, /name="remarks" required minlength="5"/);
+});
+test('Other users see pending confirmation information without reporter controls', () => {
+  const html = resolutionConfirmation({ id: 12, status: 'PENDING_CONFIRMATION' }, false);
+  assert.match(html, /Awaiting reporter confirmation/);
+  assert.ok(!html.includes('resolution-confirm-form'));
+  assert.ok(!html.includes('resolution-reject-form'));
+});
+
+test('Reporters can mark any open issue resolved without a staff submission', () => {
+  for (const status of ['REPORTED', 'REVIEW', 'ASSIGNED', 'IN_PROGRESS']) {
+    const html = resolutionConfirmation({ id: 12, status }, true);
+    assert.match(html, /Mark as resolved/);
+    assert.match(html, /do not need to wait for staff/);
+    assert.match(html, /type="checkbox" name="confirmed" required/);
+    assert.ok(!html.includes('resolution-reject-form'));
+    assert.equal(resolutionConfirmation({ id: 12, status }, false), '');
+  }
+});
+
+test('Resolved and closed issues do not offer repeated confirmation', () => {
+  for (const status of ['RESOLVED', 'CLOSED'])
+    assert.equal(resolutionConfirmation({ id: 12, status }, true), '');
+});
+
+const management = readFileSync(
+  new URL('../src/main/webapp/assets/complaint-actions.js', import.meta.url),
+  'utf8'
+);
+const managementSource = management.slice(0, management.indexOf('const ownerOriginalDetail'));
+const managementControls = vm.runInNewContext(`${managementSource}; complaintManagementControls;`, {
+  canReport: () => true,
+  isAdmin: () => false,
+  state: { user: { id: 1 } },
+  icon: () => '',
+});
+test('Only the reporter sees edit and delete controls before staff start work', () => {
+  for (const status of ['REPORTED', 'REVIEW', 'ASSIGNED']) {
+    assert.match(managementControls({ id: 12, userId: 1, status }), /owner-edit/);
+    assert.match(managementControls({ id: 12, userId: 1, status }), /owner-delete/);
+    assert.equal(managementControls({ id: 12, userId: 2, status }), '');
+  }
+  for (const status of ['IN_PROGRESS', 'PENDING_CONFIRMATION', 'RESOLVED', 'CLOSED']) {
+    const html = managementControls({ id: 12, userId: 1, status });
+    assert.match(html, /owner-delete/);
+    assert.ok(!html.includes('owner-edit'));
+    assert.equal(managementControls({ id: 12, userId: 2, status }), '');
+  }
+});
+
+test('Editing preserves escaped text and offers only the student assigned hostel', () => {
+  let html = '';
+  const editSource = management.slice(
+    management.indexOf('function editComplaint('),
+    management.indexOf('async function showDeletedComplaints(')
+  );
+  const edit = vm.runInNewContext(`${editSource}; editComplaint;`, {
+    canManageComplaint: () => true,
+    state: { user: { role: 'STUDENT', hostelBlock: 'K' } },
+    blocks: { Hostel: ['K', 'L', 'N'], Academic: ['SJT'] },
+    categories: ['Electrical'],
+    icon: () => '',
+    esc: (s) =>
+      String(s)
+        .replaceAll('&', '&amp;')
+        .replaceAll('<', '&lt;')
+        .replaceAll('>', '&gt;')
+        .replaceAll('"', '&quot;'),
+    openModal: (_, content) => {
+      html = content;
+    },
+  });
+  edit({
+    id: 12,
+    title: 'Broken <fan>',
+    description: 'The fan <stopped> working.',
+    category: 'Electrical',
+    priority: 'HIGH',
+    type: 'Hostel',
+    block: 'K',
+    floor: 2,
+    room: '214',
+  });
+  assert.match(html, /Broken &lt;fan&gt;/);
+  assert.match(html, /The fan &lt;stopped&gt; working/);
+  assert.ok(!html.includes('value="L"'));
+  assert.ok(!html.includes('value="N"'));
+  assert.match(html, /Existing photos and the complaint timeline are preserved/);
+});
+
+test('Admin can delete complaints at every stage without receiving reporter edit controls', () => {
+  const controls = vm.runInNewContext(`${managementSource}; complaintManagementControls;`, {
+    canReport: () => false,
+    isAdmin: () => true,
+    state: { user: { id: 99 } },
+    icon: () => '',
+  });
+  for (const status of [
+    'REPORTED',
+    'REVIEW',
+    'ASSIGNED',
+    'IN_PROGRESS',
+    'PENDING_CONFIRMATION',
+    'RESOLVED',
+    'CLOSED',
+  ]) {
+    const html = controls({ id: 12, userId: 1, status });
+    assert.match(html, /owner-delete/);
+    assert.ok(!html.includes('owner-edit'));
+  }
+});
+
+test('Maintenance staff have no complaint deletion controls', () => {
+  const controls = vm.runInNewContext(`${managementSource}; complaintManagementControls;`, {
+    canReport: () => false,
+    isAdmin: () => false,
+    state: { user: { id: 99 } },
+    icon: () => '',
+  });
+  assert.equal(controls({ id: 12, userId: 1, status: 'ASSIGNED' }), '');
 });

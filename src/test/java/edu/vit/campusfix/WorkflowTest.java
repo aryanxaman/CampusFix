@@ -105,7 +105,13 @@ class WorkflowTest {
             ComplaintService.validateTransition(staff, "ASSIGNED", "IN_PROGRESS", 4L, 4L)
         );
         assertDoesNotThrow(() ->
-            ComplaintService.validateTransition(staff, "IN_PROGRESS", "RESOLVED", 4L, 4L)
+            ComplaintService.validateTransition(
+                staff,
+                "IN_PROGRESS",
+                "PENDING_CONFIRMATION",
+                4L,
+                4L
+            )
         );
     }
 

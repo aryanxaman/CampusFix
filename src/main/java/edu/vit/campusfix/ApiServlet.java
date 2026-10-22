@@ -203,6 +203,20 @@ public final class ApiServlet extends HttpServlet {
                     return;
                 }
             }
+            if ("GET".equals(method) && path.equals("/complaints/deleted")) {
+                if (!user.canReport() && !user.isAdmin()) throw new ApiException(
+                    403,
+                    "Reporter access required."
+                );
+                json(res, Map.of("tickets", dao.list(user, true)));
+                return;
+            }
+            if ("POST".equals(method) && path.matches("/complaints/\\d+/(edit|delete|restore)")) {
+                String[] parts = path.split("/");
+                service.manageOwn(user, Long.parseLong(parts[2]), parts[3], body(req));
+                json(res, Map.of("ok", true));
+                return;
+            }
             if ("GET".equals(method) && path.equals("/complaints")) {
                 if (user.isAdmin()) new SlaService().escalate();
                 var tickets = dao.list(user);
@@ -229,11 +243,14 @@ public final class ApiServlet extends HttpServlet {
                 create(req, res, user);
                 return;
             }
-            if ("POST".equals(method) && path.matches("/complaints/\\d+/(update|feedback)")) {
+            if (
+                "POST".equals(method) && path.matches("/complaints/\\d+/(update|feedback|confirm)")
+            ) {
                 String[] segments = path.split("/");
                 long id = Long.parseLong(segments[2]);
                 Map<String, String> d = body(req);
                 if (segments[3].equals("update")) service.update(user, id, d);
+                else if (segments[3].equals("confirm")) service.confirmResolution(user, id, d);
                 else service.feedback(user, id, d);
                 json(res, Map.of("ok", true));
                 return;

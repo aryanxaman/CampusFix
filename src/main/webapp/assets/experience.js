@@ -32,6 +32,7 @@ function serviceJourney(tickets) {
     ['REVIEW', 'In review', 'In Review', 'clipboard-check'],
     ['ASSIGNED', 'Assigned', 'Assigned', 'person-check'],
     ['IN_PROGRESS', 'In progress', 'In Progress', 'tools'],
+    ['PENDING_CONFIRMATION', 'Confirm fix', 'Awaiting confirmation', 'person-check'],
     ['RESOLVED', 'Resolved', 'Resolved', 'check2-circle'],
     ['CLOSED', 'Closed', 'Closed', 'star'],
   ];
@@ -48,7 +49,12 @@ function serviceJourney(tickets) {
 const experienceOverview = overview;
 overview = function () {
   const html = experienceOverview();
-  const journey = serviceJourney(myTickets());
+  const pending = myTickets().filter((t) => t.status === 'PENDING_CONFIRMATION');
+  const prompt =
+    canReport() && pending.length
+      ? `<section class="resolution-review" style="margin:0 0 22px"><h3>${icon('person-check')} ${pending.length} ${pending.length === 1 ? 'fix needs' : 'fixes need'} your confirmation</h3><p>Check the maintenance work and confirm it, or send the issue back to staff.</p><button class="btn-primary" data-journey-filter="Awaiting confirmation">Review fixes ${icon('arrow-right')}</button></section>`
+      : '';
+  const journey = prompt + serviceJourney(myTickets());
   // Keep the existing overview, charts and SLA sections together.
   const position = html.indexOf('<div class="stat-grid"');
   if (position >= 0) return html.slice(0, position) + journey + html.slice(position);

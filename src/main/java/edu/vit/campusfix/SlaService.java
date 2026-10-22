@@ -50,7 +50,7 @@ public final class SlaService {
                 List<Long> overdue = new ArrayList<>();
                 try (
                     PreparedStatement p = c.prepareStatement(
-                        "SELECT id,priority,status,created_at FROM complaints WHERE status NOT IN ('RESOLVED','CLOSED')"
+                        "SELECT id,priority,status,created_at FROM complaints WHERE deleted_at IS NULL AND status NOT IN ('RESOLVED','CLOSED')"
                     );
                     ResultSet r = p.executeQuery()
                 ) {
@@ -73,7 +73,7 @@ public final class SlaService {
                     // Recheck with a row lock: a job may have been resolved while candidates were collected.
                     try (
                         PreparedStatement p = c.prepareStatement(
-                            "SELECT priority,status,created_at FROM complaints WHERE id=? FOR UPDATE"
+                            "SELECT priority,status,created_at FROM complaints WHERE deleted_at IS NULL AND id=? FOR UPDATE"
                         )
                     ) {
                         p.setLong(1, id);

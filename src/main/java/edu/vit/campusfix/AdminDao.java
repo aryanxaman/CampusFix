@@ -172,7 +172,7 @@ public final class AdminDao {
                 if (oldRole.equals("STAFF") && (!nextRole.equals("STAFF") || !active)) {
                     try (
                         PreparedStatement p = c.prepareStatement(
-                            "SELECT id FROM complaints WHERE assigned_staff_id=? AND status NOT IN ('RESOLVED','CLOSED') FOR UPDATE"
+                            "SELECT id FROM complaints WHERE assigned_staff_id=? AND deleted_at IS NULL AND status NOT IN ('RESOLVED','CLOSED') FOR UPDATE"
                         )
                     ) {
                         p.setLong(1, id);

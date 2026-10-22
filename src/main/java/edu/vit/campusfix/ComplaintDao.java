@@ -21,15 +21,22 @@ public final class ComplaintDao {
     }
 
     public List<Map<String, Object>> list(User u) throws SQLException {
+        return list(u, false);
+    }
+
+    public List<Map<String, Object>> list(User u, boolean archived) throws SQLException {
         try (Connection c = Database.connect()) {
             // All three queries must see the same snapshot during reporting and reassignment.
             c.setTransactionIsolation(Connection.TRANSACTION_REPEATABLE_READ);
             c.setAutoCommit(false);
             AppSettings config = SettingsDao.get(c);
             Map<Long, Map<String, Object>> tickets = new LinkedHashMap<>();
+            String visibility =
+                scope(u) +
+                (archived ? " AND c.deleted_at IS NOT NULL" : " AND c.deleted_at IS NULL");
             String sql =
                 "SELECT c.*,u.name reporter,s.name assigned_staff,k.name category,l.type,l.block,l.floor,l.room,f.rating,f.comment FROM complaints c JOIN users u ON u.id=c.user_id JOIN categories k ON k.id=c.category_id JOIN locations l ON l.id=c.location_id LEFT JOIN users s ON s.id=c.assigned_staff_id LEFT JOIN feedback f ON f.complaint_id=c.id WHERE " +
-                scope(u) +
+                visibility +
                 " ORDER BY c.created_at DESC";
             try (PreparedStatement p = c.prepareStatement(sql)) {
                 scopeBind(p, u);
@@ -80,7 +87,7 @@ public final class ComplaintDao {
             if (!tickets.isEmpty()) {
                 String updates =
                     "SELECT x.complaint_id,x.status,x.remarks,x.created_at,a.name FROM complaint_updates x JOIN users a ON a.id=x.actor_id JOIN complaints c ON c.id=x.complaint_id WHERE " +
-                    scope(u) +
+                    visibility +
                     " ORDER BY x.created_at,x.id";
                 try (PreparedStatement p = c.prepareStatement(updates)) {
                     scopeBind(p, u);
@@ -98,7 +105,7 @@ public final class ComplaintDao {
                 try (
                     PreparedStatement p = c.prepareStatement(
                         "SELECT a.id,a.complaint_id,a.original_name FROM attachments a JOIN complaints c ON c.id=a.complaint_id WHERE " +
-                            scope(u)
+                            visibility
                     )
                 ) {
                     scopeBind(p, u);
@@ -250,15 +257,26 @@ public final class ComplaintDao {
     }
 
     private static Map<String, Object> lock(Connection c, long id) throws SQLException {
+        return lock(c, id, false);
+    }
+
+    private static Map<String, Object> lock(Connection c, long id, boolean includeDeleted)
+        throws SQLException {
         try (
             PreparedStatement p = c.prepareStatement(
-                "SELECT user_id,assigned_staff_id,status,priority FROM complaints WHERE id=? FOR UPDATE"
+                "SELECT user_id,assigned_staff_id,status,priority,deleted_at FROM complaints WHERE id=? FOR UPDATE"
             )
         ) {
             p.setLong(1, id);
             try (ResultSet r = p.executeQuery()) {
                 if (!r.next()) throw new ApiException(404, "Complaint not found.");
                 Map<String, Object> result = new HashMap<>();
+                boolean deleted = r.getTimestamp(5) != null;
+                if (deleted && !includeDeleted) throw new ApiException(
+                    404,
+                    "Complaint has been deleted."
+                );
+                result.put("deleted", deleted);
                 result.put("owner", r.getLong(1));
                 Object assigned = r.getObject(2);
                 result.put("assigned", assigned == null ? null : ((Number) assigned).longValue());
@@ -321,7 +339,11 @@ public final class ComplaintDao {
                     c,
                     (Long) old.get("owner"),
                     id,
-                    next.replace('_', ' ') + ". " + d.get("remarks").trim()
+                    ("PENDING_CONFIRMATION".equals(next)
+                        ? "Staff marked the issue fixed. Please open the complaint and confirm whether it is resolved."
+                        : next.replace('_', ' ')) +
+                        ". " +
+                        d.get("remarks").trim()
                 );
                 if (chosen != null && !Objects.equals(chosen, assigned)) notify(
                     c,
@@ -330,6 +352,242 @@ public final class ComplaintDao {
                     "A complaint has been assigned to you."
                 );
                 if (u.isStaff()) notifyAdmins(c, id, "Staff update: " + next.replace('_', ' '));
+                c.commit();
+            } catch (SQLException | RuntimeException e) {
+                c.rollback();
+                throw e;
+            }
+        }
+    }
+
+    public void manageOwn(User u, long id, String action, Map<String, String> d)
+        throws SQLException {
+        try (Connection c = Database.connect()) {
+            c.setAutoCommit(false);
+            try {
+                Map<String, Object> old = lock(c, id, true);
+                if (
+                    !(u.isAdmin() && Set.of("delete", "restore").contains(action)) &&
+                    (!u.canReport() || (Long) old.get("owner") != u.id())
+                ) throw new ApiException(403, "You can manage only your own complaints.");
+                String actor = u.isAdmin() ? "Admin" : "Reporter";
+                boolean deleted = Boolean.TRUE.equals(old.get("deleted"));
+                String status = (String) old.get("status");
+                Long assigned = (Long) old.get("assigned");
+                if (action.equals("restore")) {
+                    if (!deleted) throw new ApiException(409, "This complaint is not deleted.");
+                    Database.update(
+                        c,
+                        "UPDATE complaints SET deleted_at=NULL,status=?,assigned_staff_id=?,updated_at=CURRENT_TIMESTAMP WHERE id=?",
+                        Set.of("RESOLVED", "CLOSED").contains(status) ? status : "REPORTED",
+                        Set.of("RESOLVED", "CLOSED").contains(status) ? assigned : null,
+                        id
+                    );
+                    history(
+                        c,
+                        id,
+                        u,
+                        Set.of("RESOLVED", "CLOSED").contains(status) ? status : "REPORTED",
+                        Set.of("RESOLVED", "CLOSED").contains(status)
+                            ? actor +
+                                  " restored the completed complaint. Status and feedback preserved."
+                            : actor + " restored the deleted complaint for fresh admin review."
+                    );
+                    notifyAdmins(
+                        c,
+                        id,
+                        Set.of("RESOLVED", "CLOSED").contains(status)
+                            ? actor + " restored a completed complaint to history."
+                            : actor + " restored a complaint for review."
+                    );
+                } else {
+                    if (deleted) throw new ApiException(
+                        409,
+                        "Restore this complaint before editing it."
+                    );
+                    if (
+                        action.equals("edit") &&
+                        !Set.of("REPORTED", "REVIEW", "ASSIGNED").contains(status)
+                    ) throw new ApiException(
+                        409,
+                        "Complaints can be edited only before staff start work."
+                    );
+                    if (action.equals("delete")) {
+                        Database.update(
+                            c,
+                            "UPDATE complaints SET deleted_at=CURRENT_TIMESTAMP,updated_at=CURRENT_TIMESTAMP WHERE id=?",
+                            id
+                        );
+                        history(
+                            c,
+                            id,
+                            u,
+                            status,
+                            actor + " deleted the complaint. Evidence retained; it can be restored."
+                        );
+                        notifyAdmins(c, id, actor + " deleted a complaint.");
+                        if (assigned != null) notify(
+                            c,
+                            assigned,
+                            id,
+                            actor + " deleted this complaint. No work is required."
+                        );
+                    } else if (action.equals("edit")) {
+                        long category;
+                        try (
+                            PreparedStatement p = c.prepareStatement(
+                                "SELECT id FROM categories WHERE name=?"
+                            )
+                        ) {
+                            p.setString(1, d.get("category"));
+                            try (ResultSet rs = p.executeQuery()) {
+                                if (!rs.next()) throw new ApiException(
+                                    400,
+                                    "Category is unavailable."
+                                );
+                                category = rs.getLong(1);
+                            }
+                        }
+                        Database.update(
+                            c,
+                            "INSERT IGNORE INTO locations(type,block,floor,room) VALUES(?,?,?,?)",
+                            d.get("type"),
+                            d.get("block"),
+                            d.get("floor"),
+                            d.get("room").trim()
+                        );
+                        long location;
+                        try (
+                            PreparedStatement p = c.prepareStatement(
+                                "SELECT id FROM locations WHERE type=? AND block=? AND floor=? AND room=?"
+                            )
+                        ) {
+                            Database.bind(
+                                p,
+                                d.get("type"),
+                                d.get("block"),
+                                d.get("floor"),
+                                d.get("room").trim()
+                            );
+                            try (ResultSet rs = p.executeQuery()) {
+                                if (!rs.next()) throw new SQLException("Location not found");
+                                location = rs.getLong(1);
+                            }
+                        }
+                        Database.update(
+                            c,
+                            "UPDATE complaints SET title=?,description=?,category_id=?,location_id=?,priority=?,updated_at=CURRENT_TIMESTAMP WHERE id=?",
+                            d.get("title").trim(),
+                            d.get("description").trim(),
+                            category,
+                            location,
+                            d.get("priority"),
+                            id
+                        );
+                        history(
+                            c,
+                            id,
+                            u,
+                            status,
+                            "Reporter edited the complaint details. Existing photos were preserved."
+                        );
+                        notifyAdmins(
+                            c,
+                            id,
+                            "Reporter edited a complaint. Please review its updated details."
+                        );
+                        if (assigned != null) notify(
+                            c,
+                            assigned,
+                            id,
+                            "Reporter edited this complaint. Check the updated details before work."
+                        );
+                    } else throw new ApiException(400, "Invalid complaint action.");
+                }
+                if (u.isAdmin()) notify(
+                    c,
+                    (Long) old.get("owner"),
+                    id,
+                    action.equals("delete")
+                        ? "An administrator deleted your complaint. It is available in Deleted complaints."
+                        : "An administrator restored your complaint."
+                );
+                c.commit();
+            } catch (SQLException | RuntimeException e) {
+                c.rollback();
+                throw e;
+            }
+        }
+    }
+
+    public void confirmResolution(User u, long id, boolean confirmed, String note)
+        throws SQLException {
+        try (Connection c = Database.connect()) {
+            c.setAutoCommit(false);
+            try {
+                Map<String, Object> old = lock(c, id);
+                if (!u.canReport() || (Long) old.get("owner") != u.id()) throw new ApiException(
+                    403,
+                    "Only the reporter can confirm the fix."
+                );
+                String previous = (String) old.get("status");
+                boolean awaiting = "PENDING_CONFIRMATION".equals(previous);
+                boolean open = Set.of(
+                    "REPORTED",
+                    "REVIEW",
+                    "ASSIGNED",
+                    "IN_PROGRESS",
+                    "PENDING_CONFIRMATION"
+                ).contains(previous);
+                if ((confirmed && !open) || (!confirmed && !awaiting)) throw new ApiException(
+                    409,
+                    confirmed
+                        ? "This complaint is already resolved or closed."
+                        : "Only a submitted fix can be returned to staff."
+                );
+                String next = confirmed ? "RESOLVED" : "IN_PROGRESS";
+                Database.update(
+                    c,
+                    "UPDATE complaints SET status=?,updated_at=CURRENT_TIMESTAMP,resolved_at=CASE WHEN ?='RESOLVED' THEN CURRENT_TIMESTAMP ELSE NULL END WHERE id=?",
+                    next,
+                    next,
+                    id
+                );
+                history(
+                    c,
+                    id,
+                    u,
+                    next,
+                    confirmed && !awaiting
+                        ? "Reporter checked the issue and marked it resolved without waiting for staff submission."
+                        : note
+                );
+                notify(
+                    c,
+                    u.id(),
+                    id,
+                    confirmed
+                        ? "Fix confirmed. You can now rate the service."
+                        : "Your complaint was returned to staff for further work."
+                );
+                Long assigned = (Long) old.get("assigned");
+                if (assigned != null) notify(
+                    c,
+                    assigned,
+                    id,
+                    confirmed
+                        ? awaiting
+                            ? "The reporter confirmed your fix."
+                            : "The reporter marked the issue resolved. No further work is needed."
+                        : "The reporter says the issue remains: " + note
+                );
+                notifyAdmins(
+                    c,
+                    id,
+                    confirmed
+                        ? "Reporter confirmed resolution."
+                        : "Reporter returned the complaint: " + note
+                );
                 c.commit();
             } catch (SQLException | RuntimeException e) {
                 c.rollback();
@@ -413,7 +671,7 @@ public final class ComplaintDao {
         try (
             Connection c = Database.connect();
             PreparedStatement p = c.prepareStatement(
-                "SELECT a.file_path,a.file_type,a.file_size,a.original_name,c.user_id,c.assigned_staff_id FROM attachments a JOIN complaints c ON c.id=a.complaint_id WHERE a.id=?"
+                "SELECT a.file_path,a.file_type,a.file_size,a.original_name,c.user_id,c.assigned_staff_id FROM attachments a JOIN complaints c ON c.id=a.complaint_id WHERE a.id=? AND c.deleted_at IS NULL"
             )
         ) {
             p.setLong(1, id);

@@ -262,6 +262,7 @@ const cfStatusMap = {
   Assigned: 'ASSIGNED',
   'In Progress': 'IN_PROGRESS',
   'In progress': 'IN_PROGRESS',
+  'Awaiting confirmation': 'PENDING_CONFIRMATION',
   Resolved: 'RESOLVED',
   Closed: 'CLOSED',
 };
@@ -293,7 +294,7 @@ filters = function (compact = false) {
     (state.priority !== 'All' ? 1 : 0) +
     (state.blockFilter ? 1 : 0) +
     (state.slaFilter ? 1 : 0);
-  return `<div class="history-filter"><div class="history-tabs">${['All', 'Pending', 'In Review', 'Assigned', 'In Progress', 'Resolved', 'Closed'].map((label) => `<button class="tab ${state.filter === label ? 'active' : ''}" data-action="filter" data-filter="${label}">${label}<b>${label === 'All' ? myTickets().length : myTickets().filter((t) => t.status === cfStatusMap[label]).length}</b></button>`).join('')}</div><details class="extra-filters" ${activeFilters ? 'open' : ''}><summary>${icon('sliders')} Filters${activeFilters ? ` · ${activeFilters} active` : ''}</summary><div class="history-controls"><select class="small-select" id="category-filter" aria-label="Filter by category"><option value="All">All categories</option>${categories.map((c) => `<option ${state.category === c ? 'selected' : ''}>${esc(c)}</option>`).join('')}</select><select class="small-select" id="priority-filter" aria-label="Filter by priority"><option value="All">All priorities</option>${['URGENT', 'HIGH', 'MEDIUM', 'LOW'].map((p) => `<option ${state.priority === p ? 'selected' : ''}>${p}</option>`).join('')}</select><select class="small-select" id="block-filter" aria-label="Filter by block"><option value="">All campus blocks</option>${Object.entries(
+  return `<div class="history-filter"><div class="history-tabs">${['All', 'Pending', 'In Review', 'Assigned', 'In Progress', 'Awaiting confirmation', 'Resolved', 'Closed'].map((label) => `<button class="tab ${state.filter === label ? 'active' : ''}" data-action="filter" data-filter="${label}">${label}<b>${label === 'All' ? myTickets().length : myTickets().filter((t) => t.status === cfStatusMap[label]).length}</b></button>`).join('')}</div><details class="extra-filters" ${activeFilters ? 'open' : ''}><summary>${icon('sliders')} Filters${activeFilters ? ` · ${activeFilters} active` : ''}</summary><div class="history-controls"><select class="small-select" id="category-filter" aria-label="Filter by category"><option value="All">All categories</option>${categories.map((c) => `<option ${state.category === c ? 'selected' : ''}>${esc(c)}</option>`).join('')}</select><select class="small-select" id="priority-filter" aria-label="Filter by priority"><option value="All">All priorities</option>${['URGENT', 'HIGH', 'MEDIUM', 'LOW'].map((p) => `<option ${state.priority === p ? 'selected' : ''}>${p}</option>`).join('')}</select><select class="small-select" id="block-filter" aria-label="Filter by block"><option value="">All campus blocks</option>${Object.entries(
     blocks
   )
     .flatMap(([type, bs]) =>

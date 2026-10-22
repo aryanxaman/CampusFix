@@ -52,5 +52,21 @@
   "[java]": {
     "editor.tabSize": 4
   },
-  "explorer.excludeGitIgnore": false
+  "explorer.excludeGitIgnore": false,
+  "workbench.tree.renderIndentGuides": "always",
+  "workbench.iconTheme": "vs-seti",
+  "explorer.fileNesting.patterns": {
+    "package.json": "package-lock.json, npm-shrinkwrap.json",
+    "VERIFICATION.md": "build-verification.json, deployment-smoke-results.json",
+    "STARTUP-FIX.md": "startup-fix-verification.json",
+    "INDIGO-REDESIGN.md": "indigo-*.png",
+    "EDIT-DELETE-COMPLAINTS.md": "complaint-edit-delete.png, delete-previous-complaint.png, admin-delete-complaint.png",
+    "REPORTER-CONFIRMATION.md": "reporter-confirmation.png, direct-reporter-resolution.png",
+    "SIMPLE-UI.md": "simple-complaints.png, polished-complaints.png",
+    "UPGRADE.md": "upgrade-preview.jpg"
+  },
+  "explorer.fileNesting.expand": false,
+  "explorer.fileNesting.enabled": true,
+  "workbench.tree.indent": 18,
+  "explorer.expandSingleFolderWorkspaces": true
 }

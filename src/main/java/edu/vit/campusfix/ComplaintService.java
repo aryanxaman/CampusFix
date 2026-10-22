@@ -107,7 +107,7 @@ public final class ComplaintService {
         if (u.isAdmin()) {
             boolean valid =
                 (oldStatus.equals(nextStatus) &&
-                    !Set.of("RESOLVED", "CLOSED").contains(oldStatus)) ||
+                    !Set.of("PENDING_CONFIRMATION", "RESOLVED", "CLOSED").contains(oldStatus)) ||
                 (oldStatus.equals("REPORTED") &&
                     Set.of("REVIEW", "ASSIGNED").contains(nextStatus)) ||
                 (oldStatus.equals("REVIEW") && nextStatus.equals("ASSIGNED"));
@@ -123,7 +123,7 @@ public final class ComplaintService {
             boolean valid =
                 (oldStatus.equals("ASSIGNED") && nextStatus.equals("IN_PROGRESS")) ||
                 (oldStatus.equals("IN_PROGRESS") &&
-                    Set.of("IN_PROGRESS", "RESOLVED").contains(nextStatus));
+                    Set.of("IN_PROGRESS", "PENDING_CONFIRMATION").contains(nextStatus));
             if (!valid) throw new ApiException(400, "Start the work before marking it resolved.");
         } else throw new ApiException(403, "You cannot update this workflow.");
     }
@@ -137,6 +137,22 @@ public final class ComplaintService {
         dao.updateWorkflow(u, id, d);
     }
 
+    public void manageOwn(User u, long id, String action, Map<String, String> d)
+        throws SQLException {
+        if (
+            !u.canReport() && !(u.isAdmin() && Set.of("delete", "restore").contains(action))
+        ) throw new ApiException(
+            403,
+            "Only reporters or authorized administrators can manage complaints."
+        );
+        if (!Set.of("edit", "delete", "restore").contains(action)) throw new ApiException(
+            400,
+            "Invalid complaint action."
+        );
+        if (action.equals("edit")) validateReport(u, d, new SettingsDao().get());
+        dao.manageOwn(u, id, action, d);
+    }
+
     public void feedback(User u, long id, Map<String, String> d) throws SQLException {
         text(d, "comment", 3, 1000);
         int rating;
@@ -147,5 +163,17 @@ public final class ComplaintService {
         }
         if (rating < 1 || rating > 5) throw new ApiException(400, "Choose a rating from 1 to 5.");
         dao.feedback(u, id, rating, d.get("comment").trim());
+    }
+
+    public void confirmResolution(User u, long id, Map<String, String> d) throws SQLException {
+        if (!u.canReport()) throw new ApiException(403, "Only the reporter can confirm the fix.");
+        if (
+            !"true".equals(d.get("confirmed")) && !"false".equals(d.get("confirmed"))
+        ) throw new ApiException(400, "Choose whether the issue is fixed.");
+        boolean confirmed = "true".equals(d.get("confirmed"));
+        String note = confirmed
+            ? "Reporter confirmed that the issue is resolved."
+            : text(d, "remarks", 5, 1000);
+        dao.confirmResolution(u, id, confirmed, note);
     }
 }

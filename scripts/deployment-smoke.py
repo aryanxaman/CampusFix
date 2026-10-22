@@ -398,11 +398,18 @@ check(
     staff.request(
         f"complaints/{cid}/update",
         "POST",
-        {"status": "RESOLVED", "remarks": "Completed verification repair."},
+        {"status": "PENDING_CONFIRMATION", "remarks": "Completed verification repair."},
     )[0]
     == 200,
-    "Staff resolves in-progress work",
+    "Staff submits fix for reporter confirmation",
 )
+check(student.request(f"complaints/{cid}/feedback", "POST", {"rating": 5, "comment": "Not confirmed yet"})[0] == 409, "Feedback blocked before reporter confirmation")
+for actor, label in [(admin, "Admin"), (staff, "Staff"), (faculty, "Other reporter")]:
+    check(actor.request(f"complaints/{cid}/confirm", "POST", {"confirmed": "true"})[0] == 403, label + " cannot confirm another reporter's fix")
+check(student.request(f"complaints/{cid}/confirm", "POST", {"confirmed": "false", "remarks": "The problem is still present."})[0] == 200, "Reporter returns an unfixed issue to staff")
+check(staff.request(f"complaints/{cid}/update", "POST", {"status": "PENDING_CONFIRMATION", "remarks": "Repaired again and rechecked."})[0] == 200, "Staff submits a second repair for confirmation")
+check(student.request(f"complaints/{cid}/confirm", "POST", {"confirmed": "true"})[0] == 200, "Reporter confirms the fix")
+check(student.request(f"complaints/{cid}/confirm", "POST", {"confirmed": "true"})[0] == 409, "Duplicate confirmation is rejected")
 check(
     student.request(
         f"complaints/{cid}/feedback",
@@ -414,7 +421,7 @@ check(
 )
 ticket = next(t for t in student.request("complaints")[1]["tickets"] if t["id"] == cid)
 check(
-    ticket["status"] == "CLOSED" and ticket["rating"] == 5 and len(ticket["updates"]) == 6,
+    ticket["status"] == "CLOSED" and ticket["rating"] == 5 and len(ticket["updates"]) == 9,
     "Closed complaint, rating and full timeline persist",
 )
 check(
@@ -549,6 +556,77 @@ check(
     registered.request("complaints", "POST", body_location, content_location)[0] == 403,
     "Registered K student cannot report N Block",
 )
+
+for reporter, other, label in [(student, faculty, "Student"), (faculty, student, "Faculty")]:
+    direct_body, direct_content = location_body("Academic", "SJT")
+    direct_status, direct_result = reporter.request("complaints", "POST", direct_body, direct_content)
+    check(direct_status == 201, label + " creates a complaint for direct resolution")
+    direct_id = direct_result["id"]
+    check(other.request(f"complaints/{direct_id}/confirm", "POST", {"confirmed": "true"})[0] == 403, "Other reporter cannot directly resolve " + label + " complaint")
+    check(reporter.request(f"complaints/{direct_id}/confirm", "POST", {"confirmed": "true"})[0] == 200, label + " resolves own issue without staff submission")
+    direct_ticket = next(t for t in reporter.request("complaints")[1]["tickets"] if t["id"] == direct_id)
+    check(direct_ticket["status"] == "RESOLVED" and direct_ticket.get("assignedStaffId") is None, label + " direct resolution persists without an assignment")
+
+for reporter, other, label in [(student, faculty, "Student"), (faculty, student, "Faculty")]:
+    own_body, own_content = location_body("Academic", "SJT")
+    own_status, own_result = reporter.request("complaints", "POST", own_body, own_content)
+    check(own_status == 201, label + " creates an editable complaint")
+    own_id = own_result["id"]
+    edit_data = {"title":"Updated classroom fan report", "description":"Updated details for an isolated editable classroom complaint.", "category":"Electrical", "priority":"LOW", "type":"Academic", "block":"SJT", "floor":"1", "room":"Updated verification lab"}
+    check(other.request(f"complaints/{own_id}/edit", "POST", edit_data)[0] == 403, "Other reporter cannot edit " + label + " complaint")
+    check(reporter.request(f"complaints/{own_id}/edit", "POST", edit_data)[0] == 200, label + " edits own submitted complaint")
+    edited = next(t for t in reporter.request("complaints")[1]["tickets"] if t["id"] == own_id)
+    check(edited["title"] == edit_data["title"] and edited["room"] == edit_data["room"], label + " updated details persist")
+    check(reporter.request(f"complaints/{own_id}/delete", "POST", {}, csrf=False)[0] == 403, "Deletion requires CSRF protection")
+    check(other.request(f"complaints/{own_id}/delete", "POST", {})[0] == 403, "Other reporter cannot delete " + label + " complaint")
+    check(reporter.request(f"complaints/{own_id}/delete", "POST", {})[0] == 200, label + " deletes own complaint recoverably")
+    check(all(t["id"] != own_id for t in admin.request("complaints")[1]["tickets"]), "Deleted complaint is excluded from active admin lists")
+    check(any(t["id"] == own_id for t in reporter.request("complaints/deleted")[1]["tickets"]), "Reporter can find deleted complaint")
+    check(all(t["id"] != own_id for t in other.request("complaints/deleted")[1]["tickets"]), "Deleted complaint list remains reporter scoped")
+    check(staff.request("complaints/deleted")[0] == 403, "Staff cannot browse deleted complaints")
+    check(other.request(f"complaints/{own_id}/restore", "POST", {})[0] == 403, "Other reporter cannot restore a complaint")
+    check(reporter.request(f"complaints/{own_id}/restore", "POST", {})[0] == 200, label + " restores own complaint")
+    restored = next(t for t in reporter.request("complaints")[1]["tickets"] if t["id"] == own_id)
+    check(restored["status"] == "REPORTED" and restored.get("assignedStaffId") is None, "Restored complaint awaits fresh admin review")
+    check(reporter.request(f"complaints/{own_id}/restore", "POST", {})[0] == 409, "Repeated restore is rejected")
+
+for reporter, label in [(student, "Student"), (faculty, "Faculty")]:
+    history_body, history_content = location_body("Academic", "SJT")
+    history_status, history_result = reporter.request("complaints", "POST", history_body, history_content)
+    check(history_status == 201, label + " creates a report for historical deletion checks")
+    history_id = history_result["id"]
+    check(reporter.request(f"complaints/{history_id}/confirm", "POST", {"confirmed":"true"})[0] == 200, label + " resolves historical deletion test report")
+    for terminal in ["RESOLVED", "CLOSED"]:
+        if terminal == "CLOSED":
+            check(reporter.request(f"complaints/{history_id}/feedback", "POST", {"rating":4,"comment":"Completed repair retained in history."})[0] == 200, label + " closes historical report with feedback")
+        before = next(t for t in reporter.request("complaints")[1]["tickets"] if t["id"] == history_id)
+        check(reporter.request(f"complaints/{history_id}/delete", "POST", {})[0] == 200, label + " deletes previous " + terminal + " complaint")
+        check(all(t["id"] != history_id for t in reporter.request("complaints")[1]["tickets"]), terminal + " deleted report disappears from normal history")
+        check(reporter.request(f"complaints/{history_id}/restore", "POST", {})[0] == 200, label + " restores previous " + terminal + " complaint")
+        after = next(t for t in reporter.request("complaints")[1]["tickets"] if t["id"] == history_id)
+        check(after["status"] == terminal and all(after.get(k) == before.get(k) for k in ["resolvedAt","rating","feedback","assignedStaffId"]), "Restored " + terminal + " report preserves completion and feedback")
+
+for reporter, label, completed in [(student, "Student", False), (faculty, "Faculty", True)]:
+    admin_body, admin_content = location_body("Academic", "SJT")
+    admin_status, admin_result = reporter.request("complaints", "POST", admin_body, admin_content)
+    check(admin_status == 201, label + " report created for admin deletion")
+    admin_id = admin_result["id"]
+    if completed:
+        check(reporter.request(f"complaints/{admin_id}/confirm", "POST", {"confirmed":"true"})[0] == 200, "Faculty resolves report before admin deletion")
+        check(reporter.request(f"complaints/{admin_id}/feedback", "POST", {"rating":5,"comment":"Feedback must survive administrator deletion."})[0] == 200, "Faculty feedback saved before admin deletion")
+    before = next(t for t in reporter.request("complaints")[1]["tickets"] if t["id"] == admin_id)
+    check(staff.request(f"complaints/{admin_id}/delete", "POST", {})[0] == 403, "Staff still cannot delete complaints")
+    check(admin.request(f"complaints/{admin_id}/delete", "POST", {}, csrf=False)[0] == 403, "Admin deletion requires CSRF")
+    check(admin.request(f"complaints/{admin_id}/delete", "POST", {})[0] == 200, "Admin deletes " + label + " complaint")
+    check(all(t["id"] != admin_id for t in reporter.request("complaints")[1]["tickets"]), "Admin-deleted report is hidden from reporter normal history")
+    archived = next(t for t in admin.request("complaints/deleted")[1]["tickets"] if t["id"] == admin_id)
+    check(archived["updates"][-1]["remarks"].startswith("Admin deleted"), "Timeline identifies administrative deletion")
+    check(any("administrator deleted" in n["message"] for n in reporter.request("complaints")[1]["notifications"]), "Reporter receives admin deletion notice")
+    check(admin.request(f"complaints/{admin_id}/restore", "POST", {})[0] == 200, "Admin restores " + label + " complaint")
+    restored = next(t for t in reporter.request("complaints")[1]["tickets"] if t["id"] == admin_id)
+    check(restored["status"] == before["status"] and all(restored.get(k) == before.get(k) for k in ["rating","feedback","resolvedAt"]), "Admin restore preserves report completion and feedback")
+    check(reporter.request(f"complaints/{admin_id}/delete", "POST", {})[0] == 200, "Reporter retains own deletion permission")
+    check(admin.request(f"complaints/{admin_id}/restore", "POST", {})[0] == 200, "Admin restores a reporter-deleted complaint")
 
 report = {
     "environment": f'Real MySQL {health.get("databaseVersion","8.4")} + {health["server"]} + Java {health["java"]}',
