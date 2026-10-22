@@ -1,0 +1,24 @@
+{
+  "artifact": "campusfix.war",
+  "sha256": "44d319cb5b6d92571f7e7b3378bbbe177c2da55ca8d3c6ecb8e76995208d8484",
+  "javaTarget": 17,
+  "junitPassed": 59,
+  "realBackendLauncher": "npm run dev",
+  "applicationUrl": "http://127.0.0.1:8080/campusfix/",
+  "launcherStartupVerified": true,
+  "frontendTestsPassed": 5,
+  "liveHttpChecksPassed": 75,
+  "liveHttpChecksFailed": 0,
+  "presentationGuide": "PRESENTATION.md",
+  "visualChecks": [
+    "Login desktop",
+    "Admin dashboard desktop",
+    "Mobile overview at 390px",
+    "Lifecycle stage filters actual complaints",
+    "K Block student report form offers only K Block",
+    "Student signup requires hostel block",
+    "Faculty form offers only Academic and all four buildings"
+  ],
+  "uiUpdate": "Polished shared visual system with navy navigation, warm accents, refined cards, status colours, focus states and reduced-motion support.",
+  "uiVerification": "Admin login, light dashboard and dark complaints page visually verified in running Tomcat. Five frontend tests passed; packaged stylesheet verified against source."
+}

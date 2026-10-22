@@ -1,0 +1,56 @@
+{
+  "files.exclude": {
+    "**/hs_err_pid*.log": true,
+    "**/replay_pid*.log": true,
+    "**/__pycache__": true,
+    "src": true,
+    "target": true,
+    ".runtime/apache-maven-3.9.9": true,
+    ".runtime/apache-tomcat-10.1.61": true,
+    ".runtime/formatter": true,
+    ".runtime/mysql-8.4.0-winx64": true,
+    ".runtime/mysql-verification-data": true,
+    ".runtime/python-tools": true,
+    ".runtime/recovery-backups": true,
+    ".runtime/repository": true,
+    ".runtime/verification-logs": true,
+    ".runtime/verification-uploads": true,
+    ".runtime/*.py": true,
+    ".runtime/*.mjs": true,
+    ".runtime/*.zip": true,
+    ".runtime/*.env": true,
+    ".runtime/*.log": true,
+    ".runtime/*-ready": true,
+    ".runtime/local/tomcat": true,
+    ".runtime/local/build.sha256": true,
+    ".runtime/local/PasswordHash.java": true,
+    ".runtime/local/account-identities-before-*.json": true
+  },
+  "search.exclude": {
+    "**/.runtime": true,
+    "**/target": true
+  },
+  "files.watcherExclude": {
+    "**/Frontend/**": true,
+    "**/Backend/**": true,
+    "**/Tests/**": true,
+    "**/.runtime/**": true,
+    "**/target/**": true
+  },
+  "editor.detectIndentation": false,
+  "java.server.launchMode": "LightWeight",
+  "java.jdt.ls.vmargs": "-Xms64m -Xmx512m -XX:+UseSerialGC -Dsun.zip.disableMemoryMapping=true",
+  "java.autobuild.enabled": false,
+  "java.maxConcurrentBuilds": 1,
+  "java.import.gradle.enabled": false,
+  "explorer.compactFolders": true,
+  "explorer.sortOrder": "foldersFirst",
+  "explorer.decorations.colors": false,
+  "explorer.decorations.badges": false,
+  "editor.insertSpaces": true,
+  "editor.tabSize": 2,
+  "[java]": {
+    "editor.tabSize": 4
+  },
+  "explorer.excludeGitIgnore": false
+}

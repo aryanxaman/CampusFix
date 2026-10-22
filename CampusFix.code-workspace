@@ -1,0 +1,15 @@
+{
+  "folders": [
+    {
+      "name": "CampusFix",
+      "path": "."
+    }
+  ],
+  "settings": {
+    "terminal.integrated.cwd": "${workspaceFolder}",
+    "java.server.launchMode": "LightWeight",
+    "java.jdt.ls.vmargs": "-Xms64m -Xmx512m -XX:+UseSerialGC -Dsun.zip.disableMemoryMapping=true",
+    "java.autobuild.enabled": false,
+    "java.maxConcurrentBuilds": 1
+  }
+}

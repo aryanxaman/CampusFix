@@ -1,0 +1,17 @@
+{
+  "name": "campusfix",
+  "version": "1.1.0",
+  "private": true,
+  "description": "CampusFix JSP/Servlet application with persistent local MySQL and Tomcat",
+  "scripts": {
+    "setup:editor": "node scripts/setup-editor.mjs",
+    "predev": "node scripts/setup-editor.mjs",
+    "prestart": "node scripts/setup-editor.mjs",
+    "restart": "python scripts/run-backend.py --restart",
+    "test:frontend": "node --test scripts/frontend-regression.test.mjs",
+    "dev": "python scripts/run-backend.py",
+    "start": "python scripts/run-backend.py",
+    "build": "python scripts/run-backend.py --build-only",
+    "preview": "node scripts/preview.mjs"
+  }
+}

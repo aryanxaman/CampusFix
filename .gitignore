@@ -1,0 +1,8 @@
+target/
+.runtime/
+.env
+uploads/
+*.log
+/Frontend/
+/Backend/
+/Tests/

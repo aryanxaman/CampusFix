@@ -1,0 +1,40 @@
+name: campusfix
+services:
+  db:
+    image: mysql:8.4
+    mem_limit: 768m
+    environment:
+      MYSQL_DATABASE: campusfix
+      MYSQL_USER: campusfix
+      MYSQL_PASSWORD: ${CAMPUSFIX_DB_PASSWORD:?Set CAMPUSFIX_DB_PASSWORD}
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD:?Set MYSQL_ROOT_PASSWORD}
+    command: ['--character-set-server=utf8mb4', '--collation-server=utf8mb4_unicode_ci']
+    volumes:
+      - campusfix-db:/var/lib/mysql
+      - ./database/schema.sql:/docker-entrypoint-initdb.d/01-campusfix.sql:ro
+    healthcheck:
+      test: ['CMD-SHELL', 'mysqladmin ping -h localhost --silent']
+      interval: 5s
+      timeout: 5s
+      retries: 40
+      start_period: 25s
+  app:
+    image: tomcat:10.1.61-jdk17-temurin
+    mem_limit: 512m
+    depends_on:
+      db:
+        condition: service_healthy
+    ports:
+      - '127.0.0.1:${CAMPUSFIX_HTTP_PORT:-18080}:8080'
+    environment:
+      CAMPUSFIX_DB_URL: jdbc:mysql://db:3306/campusfix?serverTimezone=UTC&sslMode=DISABLED&allowPublicKeyRetrieval=true
+      CAMPUSFIX_DB_USER: campusfix
+      CAMPUSFIX_DB_PASSWORD: ${CAMPUSFIX_DB_PASSWORD:?Set CAMPUSFIX_DB_PASSWORD}
+      CAMPUSFIX_UPLOAD_DIR: /var/lib/campusfix/uploads
+      JAVA_OPTS: -Djava.awt.headless=true -Xms64m -Xmx256m -XX:+UseSerialGC
+    volumes:
+      - ./target/campusfix.war:/usr/local/tomcat/webapps/campusfix.war:ro
+      - campusfix-uploads:/var/lib/campusfix/uploads
+volumes:
+  campusfix-db:
+  campusfix-uploads:
