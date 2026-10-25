@@ -21,7 +21,7 @@ detail = function (id) {
   ownerOriginalDetail(id);
   const t = myTickets().find((t) => t.id === Number(id));
   if (t)
-    $('#modal-root .detail-title')?.insertAdjacentHTML('afterend', complaintManagementControls(t));
+    $('#modal-root .modal-body')?.insertAdjacentHTML('beforeend', complaintManagementControls(t));
 };
 
 const ownerOriginalComplaints = complaints;

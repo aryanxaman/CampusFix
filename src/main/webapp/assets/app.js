@@ -91,7 +91,7 @@ const timeAgo = (d) => {
   return h < 1 ? 'Just now' : h < 24 ? `${h}h ago` : `${Math.floor(h / 24)}d ago`;
 };
 const brand = () =>
-  `<a href="#" class="brand" data-action="home" aria-label="CampusFix home"><img class="campusfix-symbol" src="assets/campusfix-logo.svg?v=20261022-indigo" alt="" width="42" height="42"><div class="campusfix-wordmark">campus<span>fix</span></div></a>`;
+  `<a href="#" class="brand" data-action="home" aria-label="CampusFix home"><img class="campusfix-symbol" src="assets/campusfix-logo.svg?v=20261023-forest" alt="" width="42" height="42"><div class="campusfix-wordmark">campus<span>fix</span></div></a>`;
 const campusArt = () =>
   `<div class="campus-art" aria-hidden="true"><span class="sun"></span><div class="building b1"></div><div class="building b2"></div><div class="building b3"></div><div class="tree"></div></div>`;
 const statusBadge = (s) =>
@@ -446,14 +446,14 @@ function renderLanding() {
       .map((f) => `<article>${icon(f[0])}<h3>${f[1]}</h3><p>${f[2]}</p></article>`)
       .join(
         ''
-      )}</div></section><section id="how-it-works" class="landing-section"><div class="eyebrow muted">A CLEAR PATH TO A BETTER CAMPUS</div><h2>From “something’s broken” to “all fixed”.</h2><div class="workflow-line">${['01 · Report', '02 · Admin review', '03 · Prioritize', '04 · Assign staff', '05 · In progress', '06 · Resolved', '07 · Your feedback', '08 · Closed'].map((x) => `<span>${x}</span>`).join('')}</div><p class="muted" style="margin-top:25px;font-size:12px">Serving K, L, M, N, Q, R, S and T hostels · PRP, SJT, TT and SMV academic blocks.</p></section><footer class="landing-footer"><span>© ${new Date().getFullYear()} CampusFix · Made for the VIT community</span><span>Better spaces. Better campus days.</span></footer></div>`;
+      )}</div></section><section id="how-it-works" class="landing-section"><div class="eyebrow muted">A CLEAR PATH TO A BETTER CAMPUS</div><h2>From “something’s broken” to “all fixed”.</h2><div class="workflow-line">${['01 · Report', '02 · Admin review', '03 · Prioritize', '04 · Assign staff', '05 · In progress', '06 · Confirm the fix', '07 · Resolved', '08 · Your feedback', '09 · Closed'].map((x) => `<span>${x}</span>`).join('')}</div><p class="muted" style="margin-top:25px;font-size:12px">Serving K, L, M, N, Q, R, S and T hostels · PRP, SJT, TT and SMV academic blocks.</p></section><footer class="landing-footer"><span>© ${new Date().getFullYear()} CampusFix · Made for the VIT community</span><span>Better spaces. Better campus days.</span></footer></div>`;
 }
 function renderLogin() {
   $('#app').innerHTML =
-    `<div class="login-shell fade-in"><aside class="login-art">${brand()}<div><div class="eyebrow" style="color:#8ea99d">YOUR CAMPUS. CONNECTED.</div><h1>Good campus days<br>start here.</h1><p>A shared space to care for the places where we learn, live, and grow.</p>${campusArt()}</div><small class="muted">CampusFix · VIT Vellore</small></aside><main class="login-form"><div class="login-inner"><a class="text-link" href="#">${icon('arrow-left')} Back to home</a><h1 style="margin-top:30px">Welcome back.</h1><p class="muted" style="font-size:12px">Sign in to your campus workspace.</p><form id="login-form"><div class="field"><label for="email">VIT email address</label><input id="email" name="email" type="email" placeholder="you@vit.ac.in" required autocomplete="username"></div><div class="field"><label for="password">Password</label><input id="password" name="password" type="password" placeholder="Enter your password" required autocomplete="current-password"></div><p style="font-size:10px;color:var(--muted)">Your workspace is selected automatically using your assigned campus role.</p><button class="btn-primary" style="width:100%" type="submit">Sign in ${icon('arrow-right')}</button></form><div class="demo-entry">Just looking around? Explore with sample data.<div class="role-choices">${roles.map((r, i) => `<button class="role-choice" data-action="demo" data-role="${r}">${icon(['mortarboard', 'person-workspace', 'shield-check', 'tools'][i])}${r === 'STAFF' ? 'Staff' : nice(r)}</button>`).join('')}</div><small>Demo mode uses browser storage and is separate from the live application.</small></div><p class="muted" style="font-size:10px;text-align:center;margin-top:25px">Need an account? Contact your campus administrator.</p></div></main></div>`;
+    `<div class="login-shell fade-in"><aside class="login-art">${brand()}<div><div class="eyebrow" style="color:#8ea99d">YOUR CAMPUS. CONNECTED.</div><h1>Good campus days<br>start here.</h1><p>A shared space to care for the places where we learn, live, and grow.</p>${campusArt()}</div><small class="muted">CampusFix · VIT Vellore</small></aside><main class="login-form"><div class="login-inner"><a class="text-link" href="#">${icon('arrow-left')} Back to home</a><h1 style="margin-top:30px">Welcome back.</h1><p class="muted" style="font-size:12px">Sign in to your campus workspace.</p><form id="login-form"><div class="field"><label for="email">VIT email address</label><input id="email" name="email" type="email" placeholder="you@vit.ac.in" required autocomplete="username"></div><div class="field"><label for="password">Password</label><input id="password" name="password" type="password" placeholder="Enter your password" required autocomplete="current-password"></div><p style="font-size:12px;color:var(--muted)">Your workspace is selected automatically using your assigned campus role.</p><button class="btn-primary" style="width:100%" type="submit">Sign in ${icon('arrow-right')}</button></form><div class="demo-entry">Just looking around? Explore with sample data.<div class="role-choices">${roles.map((r, i) => `<button class="role-choice" data-action="demo" data-role="${r}">${icon(['mortarboard', 'person-workspace', 'shield-check', 'tools'][i])}${r === 'STAFF' ? 'Staff' : nice(r)}</button>`).join('')}</div><small>Demo mode uses browser storage and is separate from the live application.</small></div><p class="muted" style="font-size:12px;text-align:center;margin-top:25px">Need an account? Contact your campus administrator.</p></div></main></div>`;
 }
 function navItem(page, label, ico, count) {
-  return `<button class="nav-item ${state.page === page ? 'active' : ''}" data-action="nav" data-page="${page}">${icon(ico)}<span>${label}</span>${count ? `<span class="nav-count">${count}</span>` : ''}</button>`;
+  return `<button class="nav-item ${state.page === page ? 'active' : ''}" data-action="nav" data-page="${page}" title="${label}">${icon(ico)}<span>${label}</span>${count ? `<span class="nav-count">${count}</span>` : ''}</button>`;
 }
 function renderShell() {
   const unread = state.notifications.filter((n) => !n.read).length;
@@ -547,7 +547,7 @@ function stats() {
   ]
     .map(
       (x) =>
-        `<article class="stat-card"><div class="stat-top">${x.label}<span class="stat-icon">${icon(x.ico)}</span></div><div class="stat-value">${x.value.toString().padStart(2, '0')}</div><div class="stat-foot">${x.ico === 'check2-circle' ? '<span>' + icon('check2') + '</span>' : ''}${x.foot}</div></article>`
+        `<article class="stat-card"><div class="stat-top">${x.label}<span class="stat-icon">${icon(x.ico)}</span></div><div class="stat-value">${x.value.toString()}</div><div class="stat-foot">${x.ico === 'check2-circle' ? '<span>' + icon('check2') + '</span>' : ''}${x.foot}</div></article>`
     )
     .join('');
 }
@@ -558,7 +558,7 @@ function overview() {
       `Hello, ${first} <span style="font-size:23px">✳</span>`,
       `Here’s what’s happening ${isAdmin() ? 'across your campus' : isStaff() ? 'with your assignments' : 'with your campus today'}.`
     ) +
-    `<div class="stat-grid">${stats()}</div><div class="dashboard-grid"><div><section class="panel"><div class="panel-head"><div><h2>${isAdmin() ? 'Recent complaints' : isStaff() ? 'Your assignments' : 'My recent complaints'}</h2></div><button class="text-link" data-action="nav" data-page="complaints">View all ${icon('arrow-right')}</button></div>${filters(true)}${ticketTable(filteredTickets().slice(0, 5))}<div class="table-footer"><span>Showing ${Math.min(5, filteredTickets().length)} of ${filteredTickets().length} complaints</span><span>Updated just now</span></div></section><section class="panel chart-panel"><div class="panel-head"><div><h2>Complaint activity</h2><p>Last 7 days</p></div><div class="chart-legend"><span><i class="legend-dot" style="background:#6367e7"></i>Reported</span><span><i class="legend-dot" style="background:#26a88a"></i>Resolved</span></div></div><div class="chart-box"><canvas id="activity-chart" aria-label="Complaints reported and resolved during the last seven days" role="img"></canvas></div></section></div><aside class="dashboard-aside"><section class="panel"><div class="panel-head"><h2>Recent activity</h2><span class="muted">${icon('clock-history')}</span></div><div class="activity-list">${recentActivity()}</div><div style="padding:13px 22px;border-top:1px solid var(--line)"><button class="text-link" data-action="nav" data-page="notifications">All notifications ${icon('arrow-right')}</button></div></section><section class="help-card"><div class="help-icon">${icon('chat-dots')}</div><h3>A little help?</h3><p>Not sure where to start? We’re here to help you find the right next step.</p><button data-action="nav" data-page="help">Visit help center ${icon('arrow-up-right')}</button></section></aside></div>`
+    `<div class="stat-grid">${stats()}</div><div class="dashboard-grid"><div><section class="panel"><div class="panel-head"><div><h2>${isAdmin() ? 'Recent complaints' : isStaff() ? 'Your assignments' : 'My recent complaints'}</h2></div><button class="text-link" data-action="nav" data-page="complaints">View all ${icon('arrow-right')}</button></div>${filters(true)}${ticketTable(filteredTickets().slice(0, 5))}<div class="table-footer"><span>Showing ${Math.min(5, filteredTickets().length)} of ${filteredTickets().length} complaints</span><span>Updated just now</span></div></section><section class="panel chart-panel"><div class="panel-head"><div><h2>Complaint activity</h2><p>Last 7 days</p></div><div class="chart-legend"><span><i class="legend-dot" style="background:#287557"></i>Reported</span><span><i class="legend-dot" style="background:#26a88a"></i>Resolved</span></div></div><div class="chart-box"><canvas id="activity-chart" aria-label="Complaints reported and resolved during the last seven days" role="img"></canvas></div></section></div><aside class="dashboard-aside"><section class="panel"><div class="panel-head"><h2>Recent activity</h2><span class="muted">${icon('clock-history')}</span></div><div class="activity-list">${recentActivity()}</div><div style="padding:13px 22px;border-top:1px solid var(--line)"><button class="text-link" data-action="nav" data-page="notifications">All notifications ${icon('arrow-right')}</button></div></section><section class="help-card"><div class="help-icon">${icon('chat-dots')}</div><h3>A little help?</h3><p>Not sure where to start? We’re here to help you find the right next step.</p><button data-action="nav" data-page="help">Visit help center ${icon('arrow-up-right')}</button></section></aside></div>`
   );
 }
 function recentActivity() {
@@ -573,7 +573,7 @@ function recentActivity() {
     ? activities
         .map(
           (a) =>
-            `<div class="activity-item"><span class="activity-icon">${icon(a.status === 'RESOLVED' || a.status === 'CLOSED' ? 'check2' : a.status === 'IN_PROGRESS' ? 'tools' : 'clock')}</span><div><strong>${esc(a.title)}</strong><p>${statusLabel(a.status)} · CF-${a.id}</p><time>${timeAgo(a.createdAt)}</time></div></div>`
+            `<div class="activity-item"><span class="activity-icon">${icon(a.status === 'RESOLVED' || a.status === 'CLOSED' ? 'check2' : a.status === 'IN_PROGRESS' ? 'tools' : 'clock')}</span><div><strong>${esc(a.title)}</strong><p>${esc(a.actor || 'Campus update')} · ${statusLabel(a.status)} · CF-${a.id}</p><time>${timeAgo(a.createdAt)}</time></div></div>`
         )
         .join('')
     : `<div class="empty">Your campus story starts with your first report.</div>`;
@@ -600,7 +600,7 @@ function filteredTickets() {
 }
 function ticketTable(tickets) {
   if (!tickets.length)
-    return `<div class="empty">${icon('inbox')}No complaints found.<p style="font-size:11px">Try another filter or report your first issue.</p></div>`;
+    return `<div class="empty">${icon('inbox')}No complaints found.<p style="font-size:12px">Try another filter or report your first issue.</p></div>`;
   return `<div class="table-wrap"><table><thead><tr><th>Complaint</th><th>Location</th><th>Status</th><th>Priority</th><th></th></tr></thead><tbody>${tickets.map((t) => `<tr class="ticket-row" data-action="detail" data-id="${t.id}" tabindex="0" aria-label="Open ${esc(t.title)}"><td><div class="ticket-name"><span class="category-icon">${icon(catIcons[categories.indexOf(t.category)] || 'grid')}</span><div><strong>${esc(t.title)}</strong><small>CF-${t.id} <span style="margin:0 5px">·</span> ${date(t.createdAt)}</small></div></div></td><td class="location-cell">${esc(t.block)} ${t.type === 'Hostel' ? 'Block' : 'Building'}<small>${esc(t.room)} · Floor ${esc(t.floor)}</small></td><td>${statusBadge(t.status)}</td><td>${priorityBadge(t.priority)}</td><td>${icon('chevron-right', 'muted')}</td></tr>`).join('')}</tbody></table></div>`;
 }
 function complaints() {
@@ -630,7 +630,7 @@ function board() {
     ]
       .map((ss, i) => {
         const ts = myTickets().filter((t) => ss.includes(t.status));
-        return `<section class="board-col"><h3>${['Needs review', 'Assigned', 'In progress', 'Resolved'][i]} <span class="muted">${ts.length}</span></h3>${ts.map((t) => `<article class="board-ticket" data-action="detail" data-id="${t.id}" tabindex="0">${priorityBadge(t.priority)}<h4>${esc(t.title)}</h4><p>${esc(t.block)} Block · ${esc(t.room)}</p>${ss.length > 1 ? statusBadge(t.status) : ''}<footer><span>CF-${t.id}</span><span>${t.assignedStaff ? esc(t.assignedStaff.split(' ')[0]) : 'Unassigned'}</span></footer></article>`).join('') || '<p class="muted" style="font-size:11px;padding:15px">Nothing here right now.</p>'}</section>`;
+        return `<section class="board-col"><h3>${['Needs review', 'Assigned', 'In progress', 'Resolved'][i]} <span class="muted">${ts.length}</span></h3>${ts.map((t) => `<article class="board-ticket" data-action="detail" data-id="${t.id}" tabindex="0">${priorityBadge(t.priority)}<h4>${esc(t.title)}</h4><p>${esc(t.block)} Block · ${esc(t.room)}</p>${ss.length > 1 ? statusBadge(t.status) : ''}<footer><span>CF-${t.id}</span><span>${t.assignedStaff ? esc(t.assignedStaff.split(' ')[0]) : 'Unassigned'}</span></footer></article>`).join('') || '<p class="muted" style="font-size:12px;padding:15px">Nothing here right now.</p>'}</section>`;
       })
       .join('')}</div>`
   );
@@ -715,7 +715,7 @@ function staffPage() {
             .split(' ')
             .map((x) => x[0])
             .join('')
-        )}</span><h2 style="font-size:19px;margin:16px 0 6px">${esc(s.name)}</h2><p class="muted" style="font-size:11px">${esc(s.specialization)}</p><div class="detail-info"><div><small>Active assignments</small>${assigned.filter((t) => !['RESOLVED', 'CLOSED'].includes(t.status)).length}</div><div><small>Resolved</small>${assigned.filter((t) => ['RESOLVED', 'CLOSED'].includes(t.status)).length}</div></div><button class="btn-outline" style="width:100%" data-action="staff-work" data-id="${s.id}">View assignments ${icon('arrow-right')}</button></article>`;
+        )}</span><h2 style="font-size:19px;margin:16px 0 6px">${esc(s.name)}</h2><p class="muted" style="font-size:12px">${esc(s.specialization)}</p><div class="detail-info"><div><small>Active assignments</small>${assigned.filter((t) => !['RESOLVED', 'CLOSED'].includes(t.status)).length}</div><div><small>Resolved</small>${assigned.filter((t) => ['RESOLVED', 'CLOSED'].includes(t.status)).length}</div></div><button class="btn-outline" style="width:100%" data-action="staff-work" data-id="${s.id}">View assignments ${icon('arrow-right')}</button></article>`;
       })
       .join('')}</div>`
   );
@@ -815,12 +815,12 @@ function renderCharts() {
             {
               label: 'Reported',
               data: count(ts, 'createdAt'),
-              borderColor: '#6367e7',
-              backgroundColor: '#6367e712',
+              borderColor: '#287557',
+              backgroundColor: '#28755712',
               fill: true,
               borderWidth: 2,
               pointRadius: 3,
-              pointBackgroundColor: '#6367e7',
+              pointBackgroundColor: '#287557',
               tension: 0.4,
             },
             {
@@ -854,13 +854,13 @@ function renderCharts() {
             x: {
               grid: { display: false },
               border: { display: false },
-              ticks: { color: text, font: { size: 9 } },
+              ticks: { color: text, font: { size: 12 } },
             },
             y: {
               beginAtZero: true,
               border: { display: false },
               grid: { color: '#8c9c9910' },
-              ticks: { stepSize: 1, color: text, font: { size: 9 } },
+              ticks: { stepSize: 1, color: text, font: { size: 12 } },
             },
           },
         },
@@ -876,14 +876,14 @@ function renderCharts() {
             {
               data: categories.map((c) => ts.filter((t) => t.category === c).length),
               backgroundColor: [
-                '#6367e7',
+                '#287557',
                 '#26a88a',
-                '#5e9ae6',
-                '#d7af5b',
-                '#9a7cd4',
-                '#59b8c3',
-                '#8bb99a',
-                '#9ca9c4',
+                '#71978c',
+                '#b4a06a',
+                '#698873',
+                '#809e8e',
+                '#9cb19b',
+                '#b6c1b0',
               ],
               borderWidth: 3,
             },
@@ -895,7 +895,7 @@ function renderCharts() {
           plugins: {
             legend: {
               position: 'bottom',
-              labels: { boxWidth: 8, boxHeight: 8, color: text, font: { size: 9 }, padding: 12 },
+              labels: { boxWidth: 8, boxHeight: 8, color: text, font: { size: 12 }, padding: 12 },
             },
           },
         },
@@ -931,7 +931,7 @@ function detail(id) {
   const owner = t.userId === state.user.id;
   openModal(
     `Complaint CF-${t.id}`,
-    `${statusBadge(t.status)}<h1 class="detail-title">${esc(t.title)}</h1><div class="detail-meta">${priorityBadge(t.priority)}<span class="muted" style="font-size:11px">${icon('tag')} ${esc(t.category)}</span></div><p>${esc(t.description)}</p><div class="detail-info"><div><small>Location</small>${esc(t.block)} ${t.type === 'Hostel' ? 'Block' : 'Building'} · Floor ${esc(t.floor)}<br>${esc(t.room)}</div><div><small>Reported by</small>${esc(t.reporter)}<br><span class="muted" style="font-size:10px">${date(t.createdAt)}</span></div><div><small>Assigned to</small>${esc(t.assignedStaff || 'Awaiting assignment')}</div><div><small>Last update</small>${timeAgo(t.updatedAt)}</div></div>${t.attachments?.length ? `<h3>Photos</h3><div class="previews">${t.attachments.map((a) => `<a href="${esc(state.demo ? a.url : 'api/attachment/' + a.id)}" target="_blank" rel="noopener"><img style="width:110px;height:85px;object-fit:cover;border-radius:8px" src="${esc(state.demo ? a.url : 'api/attachment/' + a.id)}" alt="Complaint evidence"></a>`).join('')}</div>` : ''}<h3 style="margin-top:25px">Every step, in the open.</h3><div class="timeline">${(t.updates || []).map((u) => `<article class="timeline-item"><strong>${statusLabel(u.status)}</strong><p>${esc(u.remarks)}</p><time>${esc(u.actor)} · ${date(u.createdAt)} · ${timeAgo(u.createdAt)}</time></article>`).join('')}</div>${
+    `${statusBadge(t.status)}<h1 class="detail-title">${esc(t.title)}</h1><div class="detail-meta">${priorityBadge(t.priority)}<span class="muted" style="font-size:12px">${icon('tag')} ${esc(t.category)}</span></div><section class="ops-description"><h2>Description</h2><p>${esc(t.description)}</p></section><h2 class="ops-info-heading">Complaint information</h2><div class="detail-info"><div><small>Location</small>${esc(t.block)} ${t.type === 'Hostel' ? 'Block' : 'Building'} · Floor ${esc(t.floor)}<br>${esc(t.room)}</div><div><small>Reported by</small>${esc(t.reporter)}<br><span class="muted" style="font-size:12px">${esc(new Date(t.createdAt).toLocaleString('en-IN'))}</span></div><div><small>Assigned to</small>${esc(t.assignedStaff || 'Awaiting assignment')}</div><div><small>Last update</small>${timeAgo(t.updatedAt)}</div></div>${t.attachments?.length ? `<h3>Attachments</h3><div class="previews">${t.attachments.map((a) => `<a href="${esc(state.demo ? a.url : 'api/attachment/' + a.id)}" target="_blank" rel="noopener"><img style="width:110px;height:85px;object-fit:cover;border-radius:8px" src="${esc(state.demo ? a.url : 'api/attachment/' + a.id)}" alt="Complaint evidence"></a>`).join('')}</div>` : ''}<h3 style="margin-top:25px">Activity timeline</h3><div class="timeline">${(t.updates || []).map((u) => `<article class="timeline-item"><strong>${statusLabel(u.status)}</strong><p>${esc(u.remarks)}</p><time>${esc(u.actor)} · ${date(u.createdAt)} · ${timeAgo(u.createdAt)}</time></article>`).join('')}</div>${
       isAdmin() && !['PENDING_CONFIRMATION', 'RESOLVED', 'CLOSED'].includes(t.status)
         ? `<form id="workflow-form" data-id="${t.id}"><h3>Move this issue forward.</h3><div class="form-grid"><div class="field"><label for="workflow-priority">Priority</label><select id="workflow-priority" name="priority">${['LOW', 'MEDIUM', 'HIGH', 'URGENT'].map((p) => `<option ${t.priority === p ? 'selected' : ''}>${p}</option>`).join('')}</select></div><div class="field"><label for="workflow-staff">Assign staff</label><select id="workflow-staff" name="staffId"><option value="">Choose maintenance staff</option>${state.staff.map((s) => `<option value="${s.id}" ${t.assignedStaffId === s.id ? 'selected' : ''}>${esc(s.name)} · ${esc(s.specialization)}</option>`).join('')}</select></div></div><div class="field"><label for="workflow-status">Status</label><select id="workflow-status" name="status">${[
             t.status,

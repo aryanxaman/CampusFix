@@ -68,7 +68,7 @@ The result is **`target/campusfix.war`**. The build script can find the JDK bund
 .\scripts\create-user.ps1 -Name 'Campus Student' -Email 'student@vitstudent.ac.in' -Role STUDENT
 ```
 
-Supported email domains are `vit.ac.in`, its subdomains, and `vitstudent.ac.in`. Repeat provisioning for faculty and other staff. The same database environment variables must be set in this terminal. Provision the first Admin with this trusted CLI. An authenticated Admin can then create and manage accounts through Admin ? Users. There is no public role selection or registration endpoint.
+Supported email domains are `vit.ac.in`, its subdomains, and `vitstudent.ac.in`. Repeat provisioning for faculty and other staff. The same database environment variables must be set in this terminal. Provision the first Admin with this trusted CLI. An authenticated Admin can then create and manage accounts through Admin ? Users. Public signup creates Student accounts only; other roles remain Admin-managed.
 
 6. Copy `target/campusfix.war` into your Tomcat `webapps` directory. Start Tomcat using `bin/catalina.bat run` (or `bin/catalina.sh run`). Visit **http://localhost:8080/campusfix/** and sign in with a provisioned account. If Tomcat runs as a Windows service, configure its service environment explicitly; it will not inherit variables from another PowerShell session.
 
@@ -146,7 +146,7 @@ Every authenticated POST requires the `X-CSRF-Token` returned by login/session d
 
 Runtime dependencies and deployment compatibility were checked against [Tomcat 10.1 documentation](https://tomcat.apache.org/tomcat-10.1-doc/) and [MySQL Connector/J Maven documentation](https://dev.mysql.com/doc/connector-j/en/connector-j-installing-maven.html).
 
-The latest verification passed 77 Java tests, 14 frontend tests and 179 HTTP checks on isolated MySQL 8.4 and Tomcat 10.1.61. The WAR targets Java 17; this native check used Java 25. See `docs/deployment-smoke-results.json` for individual checks. Automated checks do not replace a manual browser/mobile rehearsal or a production load test.
+The latest verification passed 77 Java tests, 19 frontend tests and 179 HTTP checks on isolated MySQL 8.4 and Tomcat 10.1.61. The WAR targets Java 17; this native check used Java 25. See `docs/deployment-smoke-results.json` for individual checks. Automated checks do not replace a manual browser/mobile rehearsal or a production load test.
 
 
 ## VS Code and local data
@@ -192,3 +192,10 @@ For Docker, copy `.env.example` to `.env`, set the required passwords, build the
 Verification commands: `scripts/build.ps1` (Java tests and WAR), `npm run test:frontend` (frontend regressions), and `python scripts/native-verification.py` (isolated real backend checks, requires the local ignored test runtimes/configuration). Test databases are separate from your real local records.
 
 Before public use: change shared demonstration passwords, verify campus identity, configure HTTPS/secure cookies and appropriate database TLS, test backups, add GitHub CI, and measure performance. JDBC currently opens connections per operation and complaint lists are not server-paginated. Classroom charts/icons/fonts require internet unless the CDN assets are bundled locally.
+
+
+### Operations dashboard design
+
+The shared frontend keeps the forest-green/ivory/gold identity and the existing JSP/Servlet APIs. Admin sees actual KPI counts, attention filters, selectable activity periods, SLA compliance, recent complaints, category/location insights and quick search across authorized complaints and users. Categories and Locations navigate to the existing settings fields; Reports exports existing complaint data. Student and Faculty dashboards focus on their own reports and confirmation, while Staff sees active work ordered by SLA deadline. Desktop navigation collapses to icons and mobile navigation uses a focus-managed drawer.
+
+Activity charts count reports, first work-start events and resolution events; they do not invent historical queue sizes. SLA compliance uses completed complaints under configured priority targets. Average response measures the first recorded review, assignment or work start; missing measurements show an em dash. No fixed performance target or fabricated trend is displayed.

@@ -340,7 +340,7 @@ complaints = function () {
           : 'My complaints. Every update, together.',
       'A complete history from your first report to the final fix.'
     ) +
-    `<section class="panel"><div class="panel-head"><div><h2>${state.relatedIds ? 'Related recurring complaints' : state.staffFilter ? 'Staff assignments' : state.blockFilter ? 'Complaints by block' : 'Results'}</h2><p>${ts.length} complaints${state.demo ? ' · Demo' : ''}</p></div><label class="history-search">${icon('search')}<input id="list-search" value="${esc(state.search)}" placeholder="Search complaints…" aria-label="Search complaint history"></label></div>${filters()}</section>${cfComplaintCards(ts)}`
+    `<section class="panel"><div class="panel-head"><div><h2>${state.relatedIds ? esc(state.attentionLabel || 'Related recurring complaints') : state.staffFilter ? 'Staff assignments' : state.blockFilter ? 'Complaints by block' : 'Results'}</h2><p>${ts.length} complaints${state.demo ? ' · Demo' : ''}</p></div><label class="history-search">${icon('search')}<input id="list-search" value="${esc(state.search)}" placeholder="Search complaints…" aria-label="Search complaint history"></label></div>${filters()}</section>${cfComplaintCards(ts)}`
   );
 };
 function cfMetricTiles(m) {
@@ -374,7 +374,7 @@ function cfUserLabel(r) {
   return roleNames[r] || nice(r);
 }
 function cfUsersPage() {
-  return `<div class="page-heading"><div><h1>People make the campus.</h1><p>Manage campus access and keep every role connected.</p></div><button class="btn-primary" data-action="cf-user-create">${icon('person-plus')} Create user</button></div><section class="panel"><div class="panel-head"><div><h2>Campus users</h2><p>${state.users.length} accounts · Account changes invalidate existing sessions.</p></div><label class="history-search">${icon('search')}<input id="user-search" value="${esc(state.userSearch || '')}" placeholder="Find a campus user…" aria-label="Search users"></label></div><div class="user-list">${
+  return `<div class="page-heading"><div><h1>Users</h1><p>Manage accounts, roles, and campus access.</p></div><button class="btn-primary" data-action="cf-user-create">${icon('person-plus')} Create user</button></div><section class="panel"><div class="panel-head"><div><h2>Campus users</h2><p>${state.users.length} accounts · Account changes invalidate existing sessions.</p></div><label class="history-search">${icon('search')}<input id="user-search" value="${esc(state.userSearch || '')}" placeholder="Find a campus user…" aria-label="Search users"></label></div><div class="user-list">${
     state.users
       .filter(
         (u) =>

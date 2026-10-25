@@ -1,12 +1,12 @@
 {
   "artifact": "campusfix.war",
-  "sha256": "03217fab0992c87c14a8aa451eba5edd039d5acb63219ad66f6a5bb4e19b83ca",
+  "sha256": "f606863830da186390467e14ae393e6865ef393c4354856a0586b92987aa7d88",
   "javaTarget": 17,
   "junitPassed": 77,
   "realBackendLauncher": "npm run dev",
   "applicationUrl": "http://127.0.0.1:8080/campusfix/",
   "launcherStartupVerified": true,
-  "frontendTestsPassed": 14,
+  "frontendTestsPassed": 19,
   "liveHttpChecksPassed": 179,
   "liveHttpChecksFailed": 0,
   "presentationGuide": "PRESENTATION.md",
@@ -19,8 +19,8 @@
     "Student signup requires hostel block",
     "Faculty form offers only Academic and all four buildings"
   ],
-  "uiUpdate": "Indigo campus-tech visual system: navigation, dashboards, login, landing, forms, cards, tables, charts, dark mode and responsive styling.",
-  "uiVerification": "Admin/Student/Staff sign-in, dashboards, report form, settings, analytics, 390x844 mobile navigation and complaints, and Staff dark theme inspected. JavaScript verified presentation-only; Java/schema/routing unchanged.",
+  "uiUpdate": "CampusFix operations workspace: real KPI strip, attention filters, activity periods, SLA performance, complaint table, role-specific work cards, searchable navigation, and accessible detail timeline.",
+  "uiVerification": "Admin desktop screens checked; Student/Faculty location restrictions and Staff completion controls checked without submitting record changes. Dashboard checked at seven widths with no document overflow. Console errors absent during the tested flows. Key text contrast measured at least 4.65:1 in light mode and 6.85:1 in dark mode; this is not a full accessibility certification.",
   "javaTestsPassed": 77,
   "realHttpChecksPassed": 179,
   "featureUpdate": "Admin user deletion revokes access, preserves complaint history, and protects self/busy staff accounts.",
@@ -30,5 +30,16 @@
     "accountsAccessible": 13,
     "complaintsAccessible": 9,
     "isolatedBrowserCheckboxFlow": "passed"
-  }
+  },
+  "responsiveWidths": [
+    1440,
+    1280,
+    1024,
+    768,
+    430,
+    390,
+    375
+  ],
+  "uiPreview": "docs/operations-dashboard.png",
+  "mobilePreview": "docs/operations-mobile.png"
 }

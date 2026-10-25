@@ -284,3 +284,154 @@ test('Maintenance staff have no complaint deletion controls', () => {
   });
   assert.equal(controls({ id: 12, userId: 1, status: 'ASSIGNED' }), '');
 });
+
+const metricCode = experience.slice(
+  experience.indexOf('const campusDone ='),
+  experience.indexOf('function campusKpi(')
+);
+const metricContext = {
+  cfResolvedAt: (t) => t.resolvedAt || null,
+  cfSla: (t) => ({ state: t.testSla || 'WITHIN', due: new Date(t.createdAt).getTime() + 86400000 }),
+};
+const dashboardMetrics = vm.runInNewContext(
+  `${metricCode}; campusDashboardMetrics;`,
+  metricContext
+);
+test('Dashboard metrics use actual stages, ignore completed overdue flags and avoid invented performance', () => {
+  const now = Date.parse('2026-10-25T12:00:00Z');
+  const values = dashboardMetrics(
+    [
+      {
+        status: 'REPORTED',
+        createdAt: '2026-10-25T10:00:00Z',
+        priority: 'HIGH',
+        testSla: 'OVERDUE',
+      },
+      {
+        status: 'IN_PROGRESS',
+        createdAt: '2026-10-25T08:00:00Z',
+        priority: 'MEDIUM',
+        assignedStaffId: 4,
+        updates: [{ status: 'IN_PROGRESS', createdAt: '2026-10-25T10:00:00Z' }],
+      },
+      {
+        status: 'PENDING_CONFIRMATION',
+        createdAt: '2026-10-23T01:00:00Z',
+        updatedAt: '2026-10-23T05:00:00Z',
+        priority: 'LOW',
+        assignedStaffId: 4,
+      },
+      {
+        status: 'CLOSED',
+        createdAt: '2026-10-24T00:00:00Z',
+        resolvedAt: '2026-10-24T06:00:00Z',
+        testSla: 'MET',
+      },
+    ],
+    now
+  );
+  assert.equal(values.total, 4);
+  assert.equal(values.open, 3);
+  assert.equal(values.review, 1);
+  assert.equal(values.progress, 1);
+  assert.equal(values.pending, 1);
+  assert.equal(values.overdue, 1);
+  assert.equal(values.unassigned, 1);
+  assert.equal(values.pendingOld, 1);
+  assert.equal(values.compliance, 100);
+  assert.equal(values.response, 2);
+  assert.equal(values.resolution, 6);
+  assert.equal(dashboardMetrics([], now).compliance, null);
+  assert.equal(dashboardMetrics([], now).response, null);
+});
+const seriesCode = experience.slice(
+  experience.indexOf('function campusChartSeries('),
+  experience.indexOf('const campusExistingShell')
+);
+const chartSeries = vm.runInNewContext(`${seriesCode}; campusChartSeries;`, {
+  cfResolvedAt: (t) => t.resolvedAt || null,
+});
+test('Activity chart counts first work start once and uses stored resolution dates', () => {
+  const series = chartSeries(
+    [
+      {
+        createdAt: '2026-10-24T10:00:00',
+        resolvedAt: '2026-10-25T08:00:00',
+        updates: [
+          { status: 'IN_PROGRESS', createdAt: '2026-10-24T12:00:00' },
+          { status: 'IN_PROGRESS', createdAt: '2026-10-25T01:00:00' },
+        ],
+      },
+    ],
+    'custom',
+    '2026-10-24',
+    '2026-10-25'
+  );
+  assert.deepEqual(Array.from(series.reported), [1, 0]);
+  assert.deepEqual(Array.from(series.progress), [1, 0]);
+  assert.deepEqual(Array.from(series.resolved), [0, 1]);
+});
+test('Chart date ranges stay bounded and empty data remains zero', () => {
+  const now = new Date('2026-10-25T12:00:00');
+  assert.equal(chartSeries([], '7', null, null, now).labels.length, 7);
+  assert.equal(chartSeries([], '30', null, null, now).labels.length, 30);
+  assert.equal(chartSeries([], '90', null, null, now).labels.length, 90);
+  assert.ok(chartSeries([], '7', null, null, now).reported.every((n) => n === 0));
+  assert.ok(chartSeries([], 'custom', '2020-01-01', '2030-01-01').labels.length <= 366);
+});
+test('Admin attention filters reset stale filters and retain exact report identifiers', () => {
+  const code = experience.slice(
+    experience.indexOf('function campusApplyFilter('),
+    experience.indexOf(
+      "document.addEventListener('click'",
+      experience.indexOf('function campusApplyFilter(')
+    )
+  );
+  const context = {
+    state: { category: 'Old', staffFilter: 22 },
+    myTickets: () => [
+      { id: 1, status: 'REPORTED', priority: 'HIGH' },
+      { id: 2, status: 'CLOSED', priority: 'URGENT' },
+      { id: 3, status: 'IN_PROGRESS', priority: 'LOW', assignedStaffId: 4 },
+    ],
+    campusDone: (t) => ['CLOSED', 'RESOLVED'].includes(t.status),
+    renderPage: () => {},
+    window: { scrollTo: () => {} },
+  };
+  const apply = vm.runInNewContext(`${code};campusApplyFilter;`, context);
+  apply('high');
+  assert.deepEqual(Array.from(context.state.relatedIds), [1]);
+  assert.equal(context.state.staffFilter, null);
+  apply('unassigned');
+  assert.deepEqual(Array.from(context.state.relatedIds), [1]);
+  apply('pending');
+  assert.equal(context.state.filter, 'Awaiting confirmation');
+  assert.equal(context.state.relatedIds, null);
+  apply('overdue');
+  assert.equal(context.state.slaFilter, 'OVERDUE');
+  assert.equal(context.state.category, 'All');
+});
+
+test('Quick search respects role privacy and escapes real record labels', () => {
+  const code = experience.slice(
+    experience.indexOf('function campusQuickSearch('),
+    experience.indexOf('function campusCloseSearch(')
+  );
+  const context = {
+    isAdmin: () => false,
+    state: { users: [{ id: 4, name: 'Fan technician', email: 'private@vit.ac.in' }] },
+    myTickets: () => [{ id: 1, title: 'Fan <script>attack</script>', block: 'K', room: '214' }],
+    blocks: { Hostel: ['K'], Academic: ['PRP'] },
+    esc: (v) => String(v).replaceAll('<', '&lt;').replaceAll('>', '&gt;'),
+    icon: () => '',
+  };
+  const search = vm.runInNewContext(`${code};campusQuickSearch;`, context);
+  const student = search('fan');
+  assert.match(student, /Fan &lt;script&gt;/);
+  assert.ok(!student.includes('<script>'));
+  assert.ok(!student.includes('private@vit.ac.in'));
+  context.isAdmin = () => true;
+  assert.match(search('fan'), /private@vit.ac.in/);
+  assert.match(search('prp'), /Academic · PRP/);
+  assert.equal(search('   '), '');
+});

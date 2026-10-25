@@ -29,7 +29,7 @@ function renderSignup() {
       <div class="field"><label for="signup-email">VIT email address *</label><input id="signup-email" name="email" type="email" required maxlength="190" autocomplete="username" placeholder="you@vitstudent.ac.in"></div>
       <div class="field"><label for="signup-block">Your hostel block *</label><select id="signup-block" name="hostelBlock" required disabled><option value="">Loading hostel blocks…</option></select><small>You can report in all academic buildings and only this hostel. Contact Admin if you move to another hostel.</small></div>
       <div class="form-grid"><div class="field"><label for="signup-password">Password *</label><input id="signup-password" name="password" type="password" required minlength="12" maxlength="72" autocomplete="new-password"></div><div class="field"><label for="signup-confirm">Confirm password *</label><input id="signup-confirm" name="confirm" type="password" required minlength="12" maxlength="72" autocomplete="new-password"></div></div>
-      <p class="muted" style="font-size:11px">Use at least 12 characters, up to 72 UTF-8 bytes. This creates a Student account.</p>
+      <p class="muted" style="font-size:12px">Use at least 12 characters, up to 72 UTF-8 bytes. This creates a Student account.</p>
       <button class="btn-primary" type="submit" style="width:100%" disabled>Create student account ${icon('arrow-right')}</button>
     </form>`;
   inner.lastElementChild?.matches('p') &&
